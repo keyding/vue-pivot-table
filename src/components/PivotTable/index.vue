@@ -112,6 +112,16 @@ export default {
         data: {
             type: Array,
             default: () => []
+        },
+        // display column summary info. The default value is `false`
+        showColumnSummary: {
+            type: Boolean,
+            default: false
+        },
+        // display row summary info. The default value is `false`
+        showRowSummary: {
+            type: Boolean,
+            default: false
         }
     },
     data: () => ({
@@ -128,18 +138,36 @@ export default {
         // handle column head
         colHead() {
             return this._compileHead(
-                ...this.localColumns.map(({ values }) => values)
+                ...this.localColumns.map(({ values }) => values),
+                this.showColumnSummary
             );
         },
         // handle row head
         rowHead() {
             return this._compileHead(
-                ...this.localRows.map(({ values }) => values)
+                ...this.localRows.map(({ values }) => values),
+                this.showRowSummary
             );
         },
         // monitor all props value changes
         watchAllProps() {
-            return this.rows && this.columns && this.values && this.data;
+            const {
+                rows,
+                columns,
+                values,
+                data,
+                showColumnSummary,
+                showRowSummary
+            } = this;
+
+            return {
+                rows,
+                columns,
+                values,
+                data,
+                showColumnSummary,
+                showRowSummary
+            };
         }
     },
     created() {
@@ -294,23 +322,44 @@ export default {
             );
         },
         // compile table head
-        // e.g. _compileHead(['a', 'b'], ['c', 'd'], ...)
+        // e.g. _compileHead(['a', 'b'], ['c', 'd'], ..., isShowSummary = false)
         _compileHead(...args) {
-            const paths = this._combine(...args);
+            // show summary info, the default is `false`
+            let _isHasSummary = false;
 
-            let totalKeys = [];
+            const lastArg = args[args.length - 1];
 
-            for (let i = args.length - 1; i > 0; i--) {
-                totalKeys = totalKeys.concat(
-                    this._combine(...args.slice(0, i))
-                );
+            if (Array.isArray(lastArg)) {
+                _isHasSummary = false;
+            } else {
+                _isHasSummary = !!lastArg;
+                args.pop();
             }
 
-            totalKeys.forEach(total => {
-                const start = paths.findIndex(item => item.startsWith(total));
-                const end = paths.filter(item => item.startsWith(total)).length;
-                paths.splice(start + end, 0, total);
-            });
+            const paths = this._combine(...args);
+
+            // add summary info
+            if (_isHasSummary) {
+                let totalKeys = [];
+
+                for (let i = args.length - 1; i > 0; i--) {
+                    totalKeys = totalKeys.concat(
+                        this._combine(...args.slice(0, i))
+                    );
+                }
+
+                totalKeys.forEach(total => {
+                    const start = paths.findIndex(item =>
+                        item.startsWith(total)
+                    );
+                    const end = paths.filter(item => item.startsWith(total))
+                        .length;
+                    paths.splice(start + end, 0, total);
+                });
+
+                // global total
+                paths.push("");
+            }
 
             return paths;
         },

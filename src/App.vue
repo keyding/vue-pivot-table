@@ -1,6 +1,13 @@
 <template>
     <div id="app">
-        <pivot-table :rows="rows" :columns="columns" :values="values" :data="tableData"></pivot-table>
+        <pivot-table
+            :show-row-summary="true"
+            :show-column-summary="true"
+            :rows="rows"
+            :columns="columns"
+            :values="values"
+            :data="tableData"
+        ></pivot-table>
     </div>
 </template>
 
@@ -14,31 +21,31 @@ export default {
         rows: [
             {
                 key: "date",
-                label: "日期"
+                label: "Date"
             },
             {
                 key: "time",
-                label: "时间"
+                label: "Time"
             }
         ],
         columns: [
             {
                 key: "media",
-                label: "媒体"
+                label: "Media"
             },
             {
                 key: "account",
-                label: "账号"
+                label: "Account"
             },
             {
                 key: "proxy",
-                label: "代理"
+                label: "Proxy"
             }
         ],
         values: [
             {
                 key: "click",
-                label: "点击求和",
+                label: "Clicks",
                 handle(data) {
                     if (!data.length) return "";
                     let total = 0;
@@ -50,7 +57,7 @@ export default {
             },
             {
                 key: "download",
-                label: "应用下载",
+                label: "Downloads",
                 handle(data) {
                     // console.log(data);
                     if (!data.length) return "";
