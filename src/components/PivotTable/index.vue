@@ -1,5 +1,5 @@
 <template>
-    <table v-if="this.data && this.data.length">
+    <table v-if="this.data && this.data.length" @click="handleTableClick">
         <!-- Has props.columns -->
         <template v-if="localColumns.length">
             <!-- column head label -->
@@ -7,16 +7,16 @@
                 <tr>
                     <template v-if="n === 1 && localRows.length">
                         <td
-                            v-for="rowHead in localRows"
+                            v-for="(rowHead, rowHeadIndex) in localRows"
                             :key="rowHead.key"
                             :rowspan="localColumns.length + 1"
                         >
-                            <div>{{ rowHead.label }}</div>
+                            <div>{{ rowHead.label }} [{{ n - 1 }} - {{ rowHeadIndex }}]</div>
                         </td>
                     </template>
-                    <template v-for="col in colHead">
+                    <template v-for="(col, colIndex) in colHead">
                         <td :colspan="localValues.length">
-                            <div>{{ col.split(SEPARATOR)[n - 1] }}</div>
+                            <div>{{ col.split(SEPARATOR)[n - 1] }} [{{ n - 1 }} - {{ n === 1 ? colIndex + localRows.length : colIndex }}]</div>
                         </td>
                     </template>
                 </tr>
@@ -24,8 +24,8 @@
             <!-- values head label -->
             <tr>
                 <template v-for="n in colHead.length">
-                    <td v-for="item in localValues" :key="item.key + n">
-                        <div>{{ item.label }}</div>
+                    <td v-for="(item, index) in localValues" :key="item.key + n">
+                        <div>{{ item.label }} [{{ localColumns.length }} - {{ (n - 1) * 2 + index }}]</div>
                     </td>
                 </template>
             </tr>
@@ -34,12 +34,12 @@
         <template v-else>
             <tr>
                 <!-- row head label -->
-                <td v-for="rowHead in localRows" :key="rowHead.key">
-                    <div>{{ rowHead.label }}</div>
+                <td v-for="(rowHead, rowHeadIndex) in localRows" :key="rowHead.key">
+                    <div>{{ rowHead.label }} [{{ 0 + '-' + rowHeadIndex}}]</div>
                 </td>
                 <!-- values head label -->
-                <td v-for="item in localValues" :key="item.key">
-                    <div>{{ item.label }}</div>
+                <td v-for="(item, index) in localValues" :key="item.key">
+                    <div>{{ item.label }} {{ 0 + '-' + (localRows.length + index)}}</div>
                 </td>
             </tr>
         </template>
@@ -49,7 +49,7 @@
             <tr v-for="(rowHeadValue, rowHeadIndex) in rowHead" :key="rowHeadValue">
                 <!-- row head label -->
                 <td v-for="n in localRows.length" :key="rowHeadValue + n">
-                    <div>{{ rowHeadValue.split(SEPARATOR)[n - 1] || '' }}</div>
+                    <div>{{ rowHeadValue.split(SEPARATOR)[n - 1] || '' }} [{{ localColumns.length + (localValues.length ? 1 : 0) + rowHeadIndex }} - {{ n - 1 }}]</div>
                 </td>
 
                 <!-- row values -->
@@ -58,7 +58,7 @@
                         v-for="(value, index) in (emptyLocalValues.length ? emptyLocalValues : localValues)"
                         :key="'' + rowHeadIndex + rowValueIndex + index"
                     >
-                        <div>{{ rowValue[value.key] }}</div>
+                        <div>{{ rowValue[value.key] }} [{{ localColumns.length + (localValues.length ? 1 : 0) + rowHeadIndex }} - {{ localRows.length + (rowValueIndex * 2) + index }}]</div>
                     </td>
                 </template>
             </tr>
@@ -182,6 +182,10 @@ export default {
                 this.handleDataClone();
                 this.setValuesToColAndRow();
                 this.tableData = this.handleFormatData();
+
+                console.log(this.tableData);
+                console.log("rowHead", this.rowHead);
+                console.log("colHead", this.colHead);
             } else {
                 console.warn(
                     "[Warn]: props.data can't be empty. And props.rows, props.columns, props.values at least one is not empty."
@@ -271,13 +275,15 @@ export default {
             !rowHeadConditions.length && rowHeadConditions.push({});
 
             // draw data
-            return rowHeadConditions.map(row =>
-                colHeadConditions.map((col, index) => {
+            return rowHeadConditions.map((row, rowIndex) =>
+                colHeadConditions.map((col, colIndex) => {
                     // the condition of current cell
                     const conditions = Object.assign({}, row, col);
 
                     // the data of current cell (Contains conditions and data)
                     const cellData = {
+                        x: rowIndex,
+                        y: colIndex,
                         ...conditions
                     };
 
@@ -381,6 +387,10 @@ export default {
         // Note: function can't be clone
         _deepClone(value) {
             return JSON.parse(JSON.stringify(value));
+        },
+        // handle table click event
+        handleTableClick(event) {
+            console.log(event);
         }
     },
     watch: {
