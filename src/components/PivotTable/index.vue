@@ -192,6 +192,8 @@ export default {
                 );
                 this.tableData = [];
             }
+
+            console.log(this.handleDataViews());
         },
         // clone data
         handleDataClone() {
@@ -327,6 +329,237 @@ export default {
                 })
             );
         },
+        handleFormatData2() {
+            const _transConditionsToMap = (paths, types) =>
+                paths.map(condition => {
+                    const conditionArr = condition.split(this.SEPARATOR);
+                    const obj = {};
+
+                    types.forEach((value, index) => {
+                        const { key } = value;
+
+                        if (conditionArr[index]) {
+                            obj[key] = conditionArr[index];
+                        }
+                    });
+
+                    return obj;
+                });
+
+            // conditions of col head
+            const colHeadConditions = _transConditionsToMap(
+                this.colHead,
+                this.localColumns
+            );
+
+            // conditions of row-head
+            const rowHeadConditions = _transConditionsToMap(
+                this.rowHead,
+                this.localRows
+            );
+
+            // the keys of condition that props.row and props.columns
+            const conditionKeys = this.localRows
+                .map(({ key }) => key)
+                .concat(this.localColumns.map(({ key }) => key));
+
+            // Note: if there are no props.rows or props.column, push an empty object
+            !colHeadConditions.length && colHeadConditions.push({});
+            !rowHeadConditions.length && rowHeadConditions.push({});
+
+            // draw data
+            return rowHeadConditions.map((row, rowIndex) =>
+                colHeadConditions.map((col, colIndex) => {
+                    // the condition of current cell
+                    const conditions = Object.assign({}, row, col);
+
+                    // the data of current cell (Contains conditions and data)
+                    // const cellData = {
+                    //     x:
+                    //         this.localColumns.length +
+                    //         (this.localValues.length ? 1 : 0) +
+                    //         rowIndex,
+                    //     y: this.rows.length + colIndex,
+                    //     ...conditions
+                    // };
+                    let cellData = [];
+
+                    // filter the data
+                    const filterData = this.localData.filter(dataItem => {
+                        let status = true;
+
+                        for (let key in conditions) {
+                            if (conditions[key] !== dataItem[key]) {
+                                status = false;
+                                return;
+                            }
+                        }
+
+                        return status;
+                    });
+
+                    // the filtered data is passed to the `handle` of `props.values`, return calculated data.
+                    // Note: there is no `handle` in the `this.localValues`.
+                    // Note: if has `props.row` and `props.columns`, but no `props.values`, set `this.emptyLocalValues` to draw empty table.
+                    if (
+                        this.localColumns.length &&
+                        this.localRows.length &&
+                        !this.values.length
+                    ) {
+                        this.emptyLocalValues = [
+                            {
+                                key: "__empty",
+                                label: "__empty",
+                                handle: () => ""
+                            }
+                        ];
+                        // cellData.__empty = "";
+                        cellData.push({
+                            x:
+                                this.localColumns.length +
+                                (this.localValues.length ? 1 : 0) +
+                                rowIndex,
+                            y: this.localRows.length + colIndex,
+                            value: "",
+                            isSummary:
+                                conditionKeys.length !==
+                                Object.keys(conditions).length
+                        });
+                    } else {
+                        cellData = this.values.map((item, index) => {
+                            return {
+                                x:
+                                    this.localColumns.length +
+                                    (this.localValues.length ? 1 : 0) +
+                                    rowIndex,
+                                y: index * 2 + colIndex,
+                                value: item.handle
+                                    ? item.handle(filterData)
+                                    : "",
+                                isSummary:
+                                    conditionKeys.length !==
+                                    Object.keys(conditions).length
+                            };
+                            // cellData[item.key] = item.handle(filterData);
+                        });
+                    }
+
+                    return cellData;
+                })
+            );
+        },
+        // handle data views
+        handleDataViews() {
+            const baseCellInfo = {
+                value: "",
+                x: 0,
+                y: 0,
+                seleted: false,
+                drag: false,
+                colspan: 1,
+                rowspan: 1,
+                isSummary: false
+            };
+
+            // merge cell info
+            const mergeInfo = (info = {}) =>
+                Object.assign({}, baseCellInfo, info);
+
+            console.log(
+                "handleDataViews: ",
+                this.rowHead,
+                this.colHead,
+                this.localValues,
+                this.localData,
+                "handleDataViews"
+            );
+
+            // handle props.rows to head
+            const rowsHead = this.localRows.map((row, index) => {
+                return mergeInfo({
+                    value: row.label,
+                    y: index,
+                    rowspan:
+                        this.localColumns.length +
+                        (this.localValues.length ? 1 : 0)
+                });
+            });
+
+            // handle props.columns to head
+            const columnsHead = this.localColumns.map(() => []);
+            this.colHead.forEach((col, colIndex) => {
+                const colArr = col.split(this.SEPARATOR);
+
+                columnsHead.forEach((row, rowIndex) => {
+                    row.push(
+                        mergeInfo({
+                            value: colArr[rowIndex] || "",
+                            x: rowIndex,
+                            y:
+                                rowIndex === 0 && this.localRows.length
+                                    ? this.localRows.length + colIndex
+                                    : colIndex,
+                            colspan: this.localValues.length || 1,
+                            isSummary:
+                                colArr.length !== this.localColumns.length
+                        })
+                    );
+                });
+            });
+
+            // handle props.values to head
+            const valuesHead = [];
+            const colCount = this.colHead.length || 1;
+            for (let i = 0; i < colCount; i++) {
+                this.localValues.forEach((cell, cellIndex) => {
+                    const col = this.colHead[i];
+                    valuesHead.push(
+                        mergeInfo({
+                            value: cell.label,
+                            x: this.localColumns.length,
+                            y:
+                                (this.localColumns.length
+                                    ? 0
+                                    : this.localRows.length) +
+                                i * 2 +
+                                cellIndex,
+                            isSummary: col
+                                ? col.split(this.SEPARATOR).length !==
+                                  this.localColumns.length
+                                : false
+                        })
+                    );
+                });
+            }
+
+            // all col head
+            let head = [...columnsHead, valuesHead];
+            head[0] = head[0] || [];
+            head[0].unshift(...rowsHead);
+            head = head.filter(row => row.length);
+
+            // handle props.rows values
+            const rowsValue = this.rowHead.map((row, rowIndex) => {
+                const rowArr = row.split(this.SEPARATOR);
+                return this.localRows.map((...args) =>
+                    mergeInfo({
+                        value: rowArr[args[1]] || "",
+                        x: head.length + rowIndex,
+                        y: args[1],
+                        isSummary: this.localRows.length !== rowArr.length
+                    })
+                );
+            });
+
+            console.log(rowsValue, "rowsValue");
+
+            console.log("rowsHead", rowsHead);
+            console.log("columnsHead", columnsHead);
+            console.log("valuesHead", valuesHead);
+            console.log("head", head);
+
+            console.log("handleFormatData", this.handleFormatData2());
+        },
         // compile table head
         // e.g. _compileHead(['a', 'b'], ['c', 'd'], ..., isShowSummary = false)
         _compileHead(...args) {
@@ -364,7 +597,7 @@ export default {
                 });
 
                 // global total
-                paths.push("");
+                // paths.push("");
             }
 
             return paths;
