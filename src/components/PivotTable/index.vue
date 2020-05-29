@@ -142,13 +142,14 @@
                     :colspan="td.colspan"
                     v-for="(td, tdIndex) in tr"
                     :key="tdIndex"
-                    :class="{ active: td.selected }"
                     @click="handleTdClick(td)"
                     @mouseenter="handleEnter(td)"
                     @mousedown="hadnleDown(td)"
                     @mouseup="handleUp(td)"
                 >
-                    <div :class="{ dragging: dragging, summary: td.isSummary }">{{ td.value }}</div>
+                    <div
+                        :class="{ active: td.selected, dragging: dragging, summary: td.isSummary }"
+                    >{{ td.value }}</div>
                 </td>
             </tr>
         </table>
@@ -586,15 +587,37 @@ export default {
                 const colArr = col.split(this.SEPARATOR);
 
                 columnsHead.forEach((row, rowIndex) => {
+                    let shadowTds = [];
+
+                    const localValuesLen = this.localValues.length;
+
+                    // shadow td
+                    if (localValuesLen && this.localRows.length) {
+                        for (let i = 0; i < localValuesLen - 1; i++) {
+                            shadowTds.push({
+                                value: "",
+                                x: rowIndex,
+                                y: this.localRows.length + colIndex * 2 + i,
+                                shadow: true
+                            });
+                        }
+                    }
+
                     row.push(
+                        ...shadowTds,
                         mergeInfo({
                             value: colArr[rowIndex] || "",
                             x: rowIndex,
                             y:
-                                rowIndex === 0 && this.localRows.length
-                                    ? this.localRows.length + colIndex
-                                    : colIndex,
-                            colspan: this.localValues.length || 1,
+                                this.localRows.length +
+                                colIndex * 2 +
+                                localValuesLen -
+                                1,
+                            // y:
+                            //     rowIndex === 0 && this.localRows.length
+                            //         ? this.localRows.length + colIndex
+                            //         : colIndex,
+                            colspan: localValuesLen || 1,
                             isSummary:
                                 colArr.length !== this.localColumns.length
                         })
@@ -612,12 +635,13 @@ export default {
                         mergeInfo({
                             value: cell.label,
                             x: this.localColumns.length,
-                            y:
-                                (this.localColumns.length
-                                    ? 0
-                                    : this.localRows.length) +
-                                i * 2 +
-                                cellIndex,
+                            y: this.localRows.length + i * 2 + cellIndex,
+                            // y:
+                            //     (this.localColumns.length
+                            //         ? 0
+                            //         : this.localRows.length) +
+                            //     i * 2 +
+                            //     cellIndex,
                             isSummary: col
                                 ? col.split(this.SEPARATOR).length !==
                                   this.localColumns.length
@@ -665,9 +689,9 @@ export default {
 
             // console.log("rowsValue", rowsValue);
 
-            console.log("rowsHead", rowsHead);
+            // console.log("rowsHead", rowsHead);
             // console.log("columnsHead", columnsHead);
-            // console.log("valuesHead", valuesHead);
+            console.log("valuesHead", valuesHead);
             console.log("head", head);
 
             const data = this.handleFormatData2();
@@ -851,23 +875,23 @@ table {
         padding: 0;
         vertical-align: middle;
 
-        &.active {
-            border-color: red;
-            background: #ccc;
-        }
+        // &.active {
+        //     border-color: red;
+        //     background: #ccc;
+        // }
 
         > div {
-            // display: flex;
-            // align-items: center;
-            // justify-content: center;
-            display: inline-table;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            // display: inline-table;
             box-sizing: border-box;
             padding: 5px;
             text-align: center;
             white-space: nowrap;
             width: 100%;
             height: 100%;
-            // min-height: 36px;
+            min-height: 36px;
 
             &.dragging {
                 user-select: none;
@@ -878,8 +902,8 @@ table {
             }
 
             &.active {
-                // outline: 1px solid red;
-                // background: #ccc;
+                outline: 1px solid red;
+                background: #ccc;
             }
         }
     }
