@@ -1,155 +1,22 @@
 <template>
     <div>
-        <table v-if="false && this.data && this.data.length" @click="handleTableClick">
-            <!-- Has props.columns -->
-            <template v-if="localColumns.length">
-                <!-- column head label -->
-                <template v-for="n in localColumns.length">
-                    <tr>
-                        <template v-if="n === 1 && localRows.length">
-                            <td
-                                v-for="(rowHead, rowHeadIndex) in localRows"
-                                :key="rowHead.key"
-                                :rowspan="localColumns.length + 1"
-                            >
-                                <div>{{ rowHead.label }} [{{ n - 1 }} - {{ rowHeadIndex }}]</div>
-                            </td>
-                        </template>
-                        <template v-for="(col, colIndex) in colHead">
-                            <td :colspan="localValues.length">
-                                <div>
-                                    {{ col.split(SEPARATOR)[n - 1] }} [{{ n - 1 }} -
-                                    {{ n === 1 ? colIndex + localRows.length : colIndex }}]
-                                </div>
-                            </td>
-                        </template>
-                    </tr>
-                </template>
-                <!-- values head label -->
-                <tr>
-                    <template v-for="n in colHead.length">
-                        <td v-for="(item, index) in localValues" :key="item.key + n">
-                            <div>
-                                {{ item.label }} [{{ localColumns.length }} -
-                                {{ (n - 1) * 2 + index }}]
-                            </div>
-                        </td>
-                    </template>
-                </tr>
-            </template>
-            <!-- No props.columns -->
-            <template v-else>
-                <tr>
-                    <!-- row head label -->
-                    <td v-for="(rowHead, rowHeadIndex) in localRows" :key="rowHead.key">
-                        <div>{{ rowHead.label }} [{{ 0 + "-" + rowHeadIndex }}]</div>
-                    </td>
-                    <!-- values head label -->
-                    <td v-for="(item, index) in localValues" :key="item.key">
-                        <div>{{ item.label }} {{ 0 + "-" + (localRows.length + index) }}</div>
-                    </td>
-                </tr>
-            </template>
-
-            <!-- Has rows -->
-            <template v-if="localRows.length">
-                <tr v-for="(rowHeadValue, rowHeadIndex) in rowHead" :key="rowHeadValue">
-                    <!-- row head label -->
-                    <td v-for="n in localRows.length" :key="rowHeadValue + n">
-                        <div>
-                            {{ rowHeadValue.split(SEPARATOR)[n - 1] || "" }} [{{
-                            localColumns.length + (localValues.length ? 1 : 0) + rowHeadIndex
-                            }}
-                            - {{ n - 1 }}]
-                        </div>
-                    </td>
-
-                    <!-- row values -->
-                    <template v-for="(rowValue, rowValueIndex) in tableData[rowHeadIndex]">
-                        <td
-                            v-for="(value, index) in emptyLocalValues.length
-                  ? emptyLocalValues
-                  : localValues"
-                            :key="'' + rowHeadIndex + rowValueIndex + index"
-                        >
-                            <div>
-                                {{ rowValue[value.key] }} [{{
-                                localColumns.length +
-                                (localValues.length ? 1 : 0) +
-                                rowHeadIndex
-                                }}
-                                - {{ localRows.length + rowValueIndex * 2 + index }}]
-                            </div>
-                        </td>
-                    </template>
-                </tr>
-            </template>
-            <!-- No rows -->
-            <template v-else>
-                <tr>
-                    <!-- row values -->
-                    <template v-for="(rowValue, rowValueIndex) in tableData[0]">
-                        <td v-for="(value, index) in localValues" :key="'' + rowValueIndex + index">
-                            <div>{{ rowValue[value.key] }}</div>
-                        </td>
-                    </template>
-                </tr>
-            </template>
-        </table>
         <table>
-            <tr>
-                <td :rowspan="4">date</td>
-                <td :rowspan="4">time</td>
-                <td v-if="false"></td>
-                <td :colspan="2">3</td>
-                <td>4</td>
-                <td>5</td>
-                <td>6</td>
-            </tr>
-            <tr>
-                <td v-if="false"></td>
-                <td v-if="false"></td>
-                <td v-if="false"></td>
-                <td :colspan="2">3</td>
-                <td>4</td>
-                <td>5</td>
-                <td>6</td>
-            </tr>
-            <tr>
-                <td v-if="false"></td>
-                <td v-if="false"></td>
-                <td v-if="false"></td>
-                <td :colspan="2">3</td>
-                <td>4</td>
-                <td>5</td>
-                <td>6</td>
-            </tr>
-            <tr>
-                <td v-if="false"></td>
-                <td v-if="false"></td>
-                <td>3-1</td>
-                <td>3-2</td>
-                <td>4</td>
-                <td>5</td>
-                <td>6</td>
-            </tr>
-        </table>
-        <table>
-            <tr v-for="(tr, trIndex) in result" :key="trIndex">
-                <td
-                    v-if="!td.shadow"
-                    :rowspan="td.rowspan"
-                    :colspan="td.colspan"
-                    v-for="(td, tdIndex) in tr"
-                    :key="tdIndex"
+            <tr v-for="(tr, trIndex) in tableData" :key="trIndex">
+                <!-- 
                     @click="handleTdClick(td)"
                     @mouseenter="handleEnter(td)"
                     @mousedown="hadnleDown(td)"
                     @mouseup="handleUp(td)"
+                -->
+                <td
+                    v-if="!td.shadow"
+                    v-for="(td, tdIndex) in tr"
+                    :rowspan="td.rowspan"
+                    :colspan="td.colspan"
+                    :key="tdIndex"
                 >
-                    <div
-                        :class="{ active: td.selected, dragging: dragging, summary: td.isSummary }"
-                    >{{ td.value }}</div>
+                    <!-- active: td.selected, dragging: dragging,  -->
+                    <div :class="{ summary: td.isSummary }">{{ td.value }}</div>
                 </td>
             </tr>
         </table>
@@ -204,20 +71,17 @@ export default {
         }
     },
     data: () => ({
-        dragging: false,
-        start: {},
-        end: {},
-        timer: null,
+        // dragging: false,
+        // start: {},
+        // end: {},
+        // timer: null,
 
         localRows: [],
         localColumns: [],
         localValues: [],
         tableData: [],
-        // Note: if no props.values, draw empty table
-        emptyLocalValues: [],
         // Separator
-        SEPARATOR: "__",
-        result: []
+        SEPARATOR: "__"
     }),
     computed: {
         // handle column head
@@ -266,19 +130,17 @@ export default {
             ) {
                 this.handleDataClone();
                 this.setValuesToColAndRow();
-                this.tableData = this.handleFormatData();
+                this.handleDataViews();
 
-                console.log(this.tableData);
-                console.log("rowHead", this.rowHead);
-                console.log("colHead", this.colHead);
+                // console.log(this.tableData);
+                // console.log("rowHead", this.rowHead);
+                // console.log("colHead", this.colHead);
             } else {
                 console.warn(
                     "[Warn]: props.data can't be empty. And props.rows, props.columns, props.values at least one is not empty."
                 );
                 this.tableData = [];
             }
-
-            console.log(this.handleDataViews());
         },
         // clone data
         handleDataClone() {
@@ -320,101 +182,6 @@ export default {
         },
         // handle table data
         handleFormatData() {
-            // conditions of col head
-            const colHeadConditions = this.colHead.map(condition => {
-                const conditionArr = condition.split(this.SEPARATOR);
-                const obj = {};
-
-                this.localColumns.forEach((value, index) => {
-                    const { key } = value;
-
-                    if (conditionArr[index]) {
-                        obj[key] = conditionArr[index];
-                    }
-                });
-
-                return obj;
-            });
-
-            // conditions of row-head
-            const rowHeadConditions = this.rowHead.map(condition => {
-                const conditionArr = condition.split(this.SEPARATOR);
-                const obj = {};
-
-                this.localRows.forEach((value, index) => {
-                    const { key } = value;
-
-                    if (conditionArr[index]) {
-                        obj[key] = conditionArr[index];
-                    }
-                });
-
-                return obj;
-            });
-
-            // the keys of condition that props.row and props.columns
-            const conditionKeys = this.localRows
-                .map(({ key }) => key)
-                .concat(this.localColumns.map(({ key }) => key));
-
-            // Note: if there are no props.rows or props.column, push an empty object
-            !colHeadConditions.length && colHeadConditions.push({});
-            !rowHeadConditions.length && rowHeadConditions.push({});
-
-            // draw data
-            return rowHeadConditions.map((row, rowIndex) =>
-                colHeadConditions.map((col, colIndex) => {
-                    // the condition of current cell
-                    const conditions = Object.assign({}, row, col);
-
-                    // the data of current cell (Contains conditions and data)
-                    const cellData = {
-                        x: rowIndex,
-                        y: colIndex,
-                        ...conditions
-                    };
-
-                    // filter the data
-                    const filterData = this.localData.filter(dataItem => {
-                        let status = true;
-
-                        for (let key in conditions) {
-                            if (conditions[key] !== dataItem[key]) {
-                                status = false;
-                                return;
-                            }
-                        }
-
-                        return status;
-                    });
-
-                    // the filtered data is passed to the `handle` of `props.values`, return calculated data.
-                    // Note: there is no `handle` in the `this.localValues`.
-                    // Note: if has `props.row` and `props.columns`, but no `props.values`, set `this.emptyLocalValues` to draw empty table.
-                    if (
-                        this.localColumns.length &&
-                        this.localRows.length &&
-                        !this.values.length
-                    ) {
-                        this.emptyLocalValues = [
-                            {
-                                key: "__empty",
-                                label: "__empty",
-                                handle: () => ""
-                            }
-                        ];
-                        cellData.__empty = "";
-                    } else {
-                        this.values.forEach(item => {
-                            cellData[item.key] = item.handle(filterData);
-                        });
-                    }
-
-                    return cellData;
-                })
-            );
-        },
-        handleFormatData2() {
             const baseCellInfo = {
                 value: "",
                 x: 0,
@@ -491,20 +258,11 @@ export default {
 
                         // the filtered data is passed to the `handle` of `props.values`, return calculated data.
                         // Note: there is no `handle` in the `this.localValues`.
-                        // Note: if has `props.row` and `props.columns`, but no `props.values`, set `this.emptyLocalValues` to draw empty table.
                         if (
                             this.localColumns.length &&
                             this.localRows.length &&
                             !this.values.length
                         ) {
-                            this.emptyLocalValues = [
-                                {
-                                    key: "__empty",
-                                    label: "__empty",
-                                    handle: () => ""
-                                }
-                            ];
-                            // cellData.__empty = "";
                             cellData.push(
                                 mergeInfo({
                                     x:
@@ -536,7 +294,6 @@ export default {
                                         conditionKeys.length !==
                                         Object.keys(conditions).length
                                 });
-                                // cellData[item.key] = item.handle(filterData);
                             });
                         }
 
@@ -562,13 +319,13 @@ export default {
             const mergeInfo = (info = {}) =>
                 Object.assign({}, baseCellInfo, info);
 
-            console.log(
-                "handleDataViews: "
-                // this.rowHead,
-                // this.colHead,
-                // this.localValues,
-                // this.localData
-            );
+            // console.log(
+            // "handleDataViews: "
+            // this.rowHead,
+            // this.colHead,
+            // this.localValues,
+            // this.localData
+            // );
 
             // handle props.rows to head
             const rowsHead = this.localRows.map((row, index) => {
@@ -636,12 +393,6 @@ export default {
                             value: cell.label,
                             x: this.localColumns.length,
                             y: this.localRows.length + i * 2 + cellIndex,
-                            // y:
-                            //     (this.localColumns.length
-                            //         ? 0
-                            //         : this.localRows.length) +
-                            //     i * 2 +
-                            //     cellIndex,
                             isSummary: col
                                 ? col.split(this.SEPARATOR).length !==
                                   this.localColumns.length
@@ -653,9 +404,6 @@ export default {
 
             // all col head
             let head = [...columnsHead, valuesHead];
-            // head[0] = head[0] || [];
-            // head[0].unshift(...rowsHead);
-            // head = head.filter(row => row.length);
 
             head = head.map((item, index) => {
                 if (index === 0) {
@@ -691,10 +439,10 @@ export default {
 
             // console.log("rowsHead", rowsHead);
             // console.log("columnsHead", columnsHead);
-            console.log("valuesHead", valuesHead);
-            console.log("head", head);
+            // console.log("valuesHead", valuesHead);
+            // console.log("head", head);
 
-            const data = this.handleFormatData2();
+            const data = this.handleFormatData();
 
             // console.log('data', data);
 
@@ -704,11 +452,9 @@ export default {
                   )
                 : data;
 
-            console.log(finalData);
+            // console.log(finalData);
 
-            this.result = [].concat(head).concat(finalData);
-
-            console.log("result", this.result);
+            this.tableData = [].concat(head).concat(finalData);
         },
         // compile table head
         // e.g. _compileHead(['a', 'b'], ['c', 'd'], ..., isShowSummary = false)
@@ -770,12 +516,12 @@ export default {
         // Note: function can't be clone
         _deepClone(value) {
             return JSON.parse(JSON.stringify(value));
-        },
+        }
+        /* feature 2.0
         // handle table click event
         handleTableClick(event) {
             console.log(event);
         },
-
         handleTdClick(td) {
             // td.active = !td.active;
         },
@@ -855,6 +601,7 @@ export default {
             this.dragging = false;
         },
         calcActiveCell() {}
+        */
     },
     watch: {
         watchAllProps() {
@@ -875,16 +622,10 @@ table {
         padding: 0;
         vertical-align: middle;
 
-        // &.active {
-        //     border-color: red;
-        //     background: #ccc;
-        // }
-
         > div {
             display: flex;
             align-items: center;
             justify-content: center;
-            // display: inline-table;
             box-sizing: border-box;
             padding: 5px;
             text-align: center;
