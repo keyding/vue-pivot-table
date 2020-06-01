@@ -2,12 +2,6 @@
     <div>
         <table>
             <tr v-for="(tr, trIndex) in tableData" :key="trIndex">
-                <!-- 
-                    @click="handleTdClick(td)"
-                    @mouseenter="handleEnter(td)"
-                    @mousedown="hadnleDown(td)"
-                    @mouseup="handleUp(td)"
-                -->
                 <td
                     v-if="!td.shadow"
                     v-for="(td, tdIndex) in tr"
@@ -15,7 +9,6 @@
                     :colspan="td.colspan"
                     :key="tdIndex"
                 >
-                    <!-- active: td.selected, dragging: dragging,  -->
                     <div :class="{ summary: td.isSummary }">{{ td.value }}</div>
                 </td>
             </tr>
@@ -517,91 +510,6 @@ export default {
         _deepClone(value) {
             return JSON.parse(JSON.stringify(value));
         }
-        /* feature 2.0
-        // handle table click event
-        handleTableClick(event) {
-            console.log(event);
-        },
-        handleTdClick(td) {
-            // td.active = !td.active;
-        },
-        // move
-        handleEnter(td) {
-            const { x, y } = td;
-            if (this.dragging) {
-                this.setActive(x, y);
-            }
-        },
-        // 设置选中
-        setActive(rowEndIndex, colEndInex) {
-            let row = rowEndIndex,
-                col = colEndInex;
-
-            const { x: rowStartIndex, y: colStartIndex } = this.start;
-
-            const rowStep = rowEndIndex >= rowStartIndex ? -1 : 1;
-            const colStep = colEndInex >= colStartIndex ? -1 : 1;
-
-            requestAnimationFrame(() => {
-                this.result.forEach(item => {
-                    item.forEach(sItem => {
-                        if (sItem.selected) {
-                            sItem.selected = false;
-                        }
-                    });
-                });
-                while (
-                    (rowStep < 0 && row >= rowStartIndex) ||
-                    (rowStep > 0 && row <= rowStartIndex)
-                ) {
-                    while (
-                        (colStep < 0 && col >= colStartIndex) ||
-                        (colStep > 0 && col <= colStartIndex)
-                    ) {
-                        this.result[row][col].selected = true;
-                        col += colStep;
-                    }
-                    // 还原 col
-                    col = colEndInex;
-                    row += rowStep;
-                }
-            });
-        },
-        hadnleDown(td) {
-            const { x, y } = td;
-            this.result.forEach(item => {
-                item.forEach(sItem => {
-                    sItem.selected = false;
-                });
-            });
-
-            td.selected = true;
-
-            this.dragging = true;
-
-            this.start = {
-                x,
-                y
-            };
-
-            console.log("start", x, y);
-        },
-        handleUp(td) {
-            const { x, y } = td;
-            this.dragging = false;
-            this.end = {
-                x,
-                y
-            };
-            console.log("end", td, x, y);
-
-            this.calcActiveCell();
-        },
-        handleTableLeave() {
-            this.dragging = false;
-        },
-        calcActiveCell() {}
-        */
     },
     watch: {
         watchAllProps() {
