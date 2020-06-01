@@ -465,10 +465,12 @@ export default {
         },
         // compile all summary
         compileAllSummary() {
-            // all row summary
-            this.compileAllRowSummary();
-            // all column summary
-            this.compileAllColumnSummary();
+            if (this.localValues.length) {
+                // all row summary
+                this.compileAllRowSummary();
+                // all column summary
+                this.compileAllColumnSummary();
+            }
         },
         // compile data of all row summary
         compileAllRowSummary() {
@@ -478,7 +480,7 @@ export default {
 
                 const _head = this.localRows.map((row, index) =>
                     this._mergeBaseCellInfo({
-                        value: "",
+                        value: index === 0 ? "Total" : "",
                         x: this.tableData.length,
                         y: index,
                         isSummary: true
@@ -523,7 +525,76 @@ export default {
         },
         // compile data of all column summary
         compileAllColumnSummary() {
-            console.log(this.colHead);
+            if (this.allColumnSummaryHandle) {
+                const rowKeys = this.localRows.map(({ key }) => key);
+
+                const _head = this.localColumns.map((item, index) =>
+                    this._mergeBaseCellInfo({
+                        value: index === 0 ? "Total" : "",
+                        x: index,
+                        y: this.tableData[0].length,
+                        isSummary: true
+                    })
+                );
+
+                _head.push(
+                    this._mergeBaseCellInfo({
+                        value: "",
+                        x: this.localColumns.length,
+                        y: this.tableData[0].length,
+                        isSummary: true
+                    })
+                );
+
+                const _filterData = this.rowHead.map(rowConditions => {
+                    const _conditionValues = rowConditions.split(
+                        this.SEPARATOR
+                    );
+
+                    return this.localData.filter(item =>
+                        rowKeys.every((key, index) =>
+                            _conditionValues[index]
+                                ? _conditionValues[index] === item[key]
+                                : true
+                        )
+                    );
+                });
+
+                const _data = _filterData.map(item => {
+                    return this.localValues.reduce((prev, curr) => {
+                        const _sum = item
+                            .map(i => i[curr.key])
+                            .reduce((sum, num) => sum + num);
+                        return Object.assign({}, prev, { [curr.key]: _sum });
+                    }, {});
+                });
+
+                const _combineCol = _head.concat(
+                    _data.map((item, index) =>
+                        this._mergeBaseCellInfo({
+                            value: this.allColumnSummaryHandle(item),
+                            x: _head.length + index,
+                            y: this.tableData[0].length,
+                            isSummary: true
+                        })
+                    )
+                );
+
+                if (this.allRowSummaryHandle) {
+                    _combineCol.push(
+                        this._mergeBaseCellInfo({
+                            value: "-",
+                            x: _combineCol.length,
+                            y: this.tableData[0].length,
+                            isSummary: true
+                        })
+                    );
+                }
+
+                this.tableData = this.tableData.map((row, rowIndex) =>
+                    row.concat(_combineCol[rowIndex] || [])
+                );
+            }
         },
         // merge base cell info
         _mergeBaseCellInfo(info = {}) {

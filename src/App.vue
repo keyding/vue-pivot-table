@@ -82,14 +82,8 @@ export default {
             return parseFloat((sum / data.length).toFixed(2));
         },
         handleAllColumnSummary(data) {
-            const _clicks = data
-                .map(item => item.click)
-                .reduce((prev, curr) => prev + curr);
-            const _downloads = data
-                .map(item => item.download)
-                .reduce((prev, curr) => prev + curr);
-
-            return _clicks / _downloads;
+            const { click, download } = data;
+            return parseFloat((click / download).toFixed(2));
         }
     }
 };
