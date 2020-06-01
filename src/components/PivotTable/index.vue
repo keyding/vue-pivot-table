@@ -487,19 +487,21 @@ export default {
                     })
                 );
 
-                const _filterData = this.colHead.map(colConditions => {
-                    const _conditionValues = colConditions.split(
-                        this.SEPARATOR
-                    );
+                const _filterData = this.colHead.length
+                    ? this.colHead.map(colConditions => {
+                          const _conditionValues = colConditions.split(
+                              this.SEPARATOR
+                          );
 
-                    return this.localData.filter(item =>
-                        colKeys.every((key, index) =>
-                            _conditionValues[index]
-                                ? _conditionValues[index] === item[key]
-                                : true
-                        )
-                    );
-                });
+                          return this.localData.filter(item =>
+                              colKeys.every((key, index) =>
+                                  _conditionValues[index]
+                                      ? _conditionValues[index] === item[key]
+                                      : true
+                              )
+                          );
+                      })
+                    : [this.localData];
 
                 const _data = _filterData
                     .map(item => {
@@ -546,19 +548,21 @@ export default {
                     })
                 );
 
-                const _filterData = this.rowHead.map(rowConditions => {
-                    const _conditionValues = rowConditions.split(
-                        this.SEPARATOR
-                    );
+                const _filterData = this.rowHead.length
+                    ? this.rowHead.map(rowConditions => {
+                          const _conditionValues = rowConditions.split(
+                              this.SEPARATOR
+                          );
 
-                    return this.localData.filter(item =>
-                        rowKeys.every((key, index) =>
-                            _conditionValues[index]
-                                ? _conditionValues[index] === item[key]
-                                : true
-                        )
-                    );
-                });
+                          return this.localData.filter(item =>
+                              rowKeys.every((key, index) =>
+                                  _conditionValues[index]
+                                      ? _conditionValues[index] === item[key]
+                                      : true
+                              )
+                          );
+                      })
+                    : [this.localData];
 
                 const _data = _filterData.map(item => {
                     return this.localValues.reduce((prev, curr) => {

@@ -31,18 +31,18 @@ export default {
             }
         ],
         columns: [
-            {
-                key: "media",
-                label: "Media"
-            },
-            {
-                key: "account",
-                label: "Account"
-            },
-            {
-                key: "proxy",
-                label: "Proxy"
-            }
+            // {
+            //     key: "media",
+            //     label: "Media"
+            // },
+            // {
+            //     key: "account",
+            //     label: "Account"
+            // },
+            // {
+            //     key: "proxy",
+            //     label: "Proxy"
+            // }
         ],
         values: [
             {
@@ -61,7 +61,6 @@ export default {
                 key: "download",
                 label: "Downloads",
                 handle(data) {
-                    // console.log(data);
                     if (!data.length) return "";
                     let total = 0;
                     data.forEach(item => {
