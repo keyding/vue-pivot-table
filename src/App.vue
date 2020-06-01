@@ -3,6 +3,8 @@
         <pivot-table
             :show-row-summary="true"
             :show-column-summary="true"
+            :all-row-summary-handle="handleAllRowSummary"
+            :all-column-summary-handle="handleAllColumnSummary"
             :rows="rows"
             :columns="columns"
             :values="values"
@@ -73,6 +75,22 @@ export default {
     }),
     components: {
         PivotTable
+    },
+    methods: {
+        handleAllRowSummary(data) {
+            const sum = data.reduce((prev, curr) => prev + curr);
+            return parseFloat((sum / data.length).toFixed(2));
+        },
+        handleAllColumnSummary(data) {
+            const _clicks = data
+                .map(item => item.click)
+                .reduce((prev, curr) => prev + curr);
+            const _downloads = data
+                .map(item => item.download)
+                .reduce((prev, curr) => prev + curr);
+
+            return _clicks / _downloads;
+        }
     }
 };
 </script>

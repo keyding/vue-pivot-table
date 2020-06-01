@@ -61,6 +61,16 @@ export default {
         showRowSummary: {
             type: Boolean,
             default: false
+        },
+        // display all row summary info.
+        // all row summary handle function.
+        allRowSummaryHandle: {
+            type: Function
+        },
+        // display all column summary info.
+        // all column summary handle function.
+        allColumnSummaryHandle: {
+            type: Function
         }
     },
     data: () => ({
@@ -124,6 +134,9 @@ export default {
                 this.handleDataClone();
                 this.setValuesToColAndRow();
                 this.handleDataViews();
+
+                // handle all summary
+                this.compileAllSummary();
 
                 // console.log(this.tableData);
                 // console.log("rowHead", this.rowHead);
@@ -386,10 +399,11 @@ export default {
                             value: cell.label,
                             x: this.localColumns.length,
                             y: this.localRows.length + i * 2 + cellIndex,
-                            isSummary: col
-                                ? col.split(this.SEPARATOR).length !==
-                                  this.localColumns.length
-                                : false
+                            isSummary:
+                                col !== undefined
+                                    ? col.split(this.SEPARATOR).length !==
+                                      this.localColumns.length
+                                    : false
                         })
                     );
                 });
@@ -448,6 +462,83 @@ export default {
             // console.log(finalData);
 
             this.tableData = [].concat(head).concat(finalData);
+        },
+        // compile all summary
+        compileAllSummary() {
+            // all row summary
+            this.compileAllRowSummary();
+            // all column summary
+            this.compileAllColumnSummary();
+        },
+        // compile data of all row summary
+        compileAllRowSummary() {
+            // Only effective when `props.allRowSummaryHandle` exists.
+            if (this.allRowSummaryHandle) {
+                const colKeys = this.localColumns.map(({ key }) => key);
+
+                const _head = this.localRows.map((row, index) =>
+                    this._mergeBaseCellInfo({
+                        value: "",
+                        x: this.tableData.length,
+                        y: index,
+                        isSummary: true
+                    })
+                );
+
+                const _filterData = this.colHead.map(colConditions => {
+                    const _conditionValues = colConditions.split(
+                        this.SEPARATOR
+                    );
+
+                    return this.localData.filter(item =>
+                        colKeys.every((key, index) =>
+                            _conditionValues[index]
+                                ? _conditionValues[index] === item[key]
+                                : true
+                        )
+                    );
+                });
+
+                const _data = _filterData
+                    .map(item => {
+                        return this.localValues.map(({ key }) =>
+                            item.map(sItem => sItem[key])
+                        );
+                    })
+                    .flat();
+
+                const _combineRow = _head.concat(
+                    _data.map((item, index) =>
+                        this._mergeBaseCellInfo({
+                            value: this.allRowSummaryHandle(item),
+                            x: this.tableData.length,
+                            y: _head.length + index,
+                            isSummary: true
+                        })
+                    )
+                );
+
+                this.tableData.push(_combineRow);
+            }
+        },
+        // compile data of all column summary
+        compileAllColumnSummary() {
+            console.log(this.colHead);
+        },
+        // merge base cell info
+        _mergeBaseCellInfo(info = {}) {
+            const baseCellInfo = {
+                value: "",
+                x: 0,
+                y: 0,
+                selected: false,
+                drag: false,
+                colspan: 1,
+                rowspan: 1,
+                isSummary: false
+            };
+
+            return Object.assign({}, baseCellInfo, info);
         },
         // compile table head
         // e.g. _compileHead(['a', 'b'], ['c', 'd'], ..., isShowSummary = false)
