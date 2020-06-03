@@ -1,14 +1,14 @@
 <template>
     <div id="app">
         <pivot-table
-            :show-row-summary="true"
-            :show-column-summary="true"
-            :all-row-summary-handle="handleAllRowSummary"
-            :all-column-summary-handle="handleAllColumnSummary"
+            :row-summary="rowSummarys"
+            :column-summary="columnSummarys"
             :rows="rows"
             :columns="columns"
             :values="values"
             :data="tableData"
+            @on-change="handleChange"
+            @on-dragend="handleDragEnd"
         ></pivot-table>
     </div>
 </template>
@@ -24,25 +24,30 @@ export default {
             {
                 key: "date",
                 label: "Date"
+                // values: ["2020-06-04", "2020-06-05"]
             },
             {
                 key: "time",
                 label: "Time"
+                // values: ["01:00", "02:00"]
             }
         ],
         columns: [
-            // {
-            //     key: "media",
-            //     label: "Media"
-            // },
-            // {
-            //     key: "account",
-            //     label: "Account"
-            // },
-            // {
-            //     key: "proxy",
-            //     label: "Proxy"
-            // }
+            {
+                key: "media",
+                label: "Media"
+                // values: ["媒体1", "媒体2"]
+            },
+            {
+                key: "account",
+                label: "Account"
+                // values: ["账号1", "账号2"]
+            },
+            {
+                key: "proxy",
+                label: "Proxy"
+                // values: ["代理1", "代理2"]
+            }
         ],
         values: [
             {
@@ -70,11 +75,50 @@ export default {
                 }
             }
         ],
+        computedSummary: [
+            {
+                name: "新增列",
+                type: "column",
+                handle(data) {
+                    console.log(data);
+                }
+            }
+        ],
+        rowSummarys: [
+            {
+                name: "新增行",
+                type: "row",
+                handle(data) {
+                    console.log(data);
+                }
+            }
+        ],
+        columnSummarys: [
+            {
+                name: "新增列",
+                type: "column",
+                handle(data) {
+                    console.log(data);
+                }
+            },
+            {
+                name: "新增列",
+                type: "column",
+                handle(data) {
+                    console.log(data);
+                }
+            }
+        ],
         tableData: DEMODATA
     }),
     components: {
         PivotTable
     },
+    // mounted() {
+    //     setTimeout(() => {
+    //         this.columns = [];
+    //     }, 1000);
+    // },
     methods: {
         handleAllRowSummary(data) {
             const sum = data.reduce((prev, curr) => prev + curr);
@@ -83,6 +127,12 @@ export default {
         handleAllColumnSummary(data) {
             const { click, download } = data;
             return parseFloat((click / download).toFixed(2));
+        },
+        handleChange() {
+            console.log("change");
+        },
+        handleDragEnd(data, allData) {
+            console.log("drag end", data, allData);
         }
     }
 };
