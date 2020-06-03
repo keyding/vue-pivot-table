@@ -1,14 +1,16 @@
 <template>
     <div id="app">
         <pivot-table
-            :show-row-summary="true"
-            :show-column-summary="true"
+            :row-summary="true"
+            :column-summary="true"
             :all-row-summary-handle="handleAllRowSummary"
             :all-column-summary-handle="handleAllColumnSummary"
             :rows="rows"
             :columns="columns"
             :values="values"
             :data="tableData"
+            @on-change="handleChange"
+            @on-dragend="handleDragEnd"
         ></pivot-table>
     </div>
 </template>
@@ -31,18 +33,18 @@ export default {
             }
         ],
         columns: [
-            // {
-            //     key: "media",
-            //     label: "Media"
-            // },
-            // {
-            //     key: "account",
-            //     label: "Account"
-            // },
-            // {
-            //     key: "proxy",
-            //     label: "Proxy"
-            // }
+            {
+                key: "media",
+                label: "Media"
+            },
+            {
+                key: "account",
+                label: "Account"
+            },
+            {
+                key: "proxy",
+                label: "Proxy"
+            }
         ],
         values: [
             {
@@ -75,6 +77,11 @@ export default {
     components: {
         PivotTable
     },
+    // mounted() {
+    //     setTimeout(() => {
+    //         this.columns = [];
+    //     }, 1000);
+    // },
     methods: {
         handleAllRowSummary(data) {
             const sum = data.reduce((prev, curr) => prev + curr);
@@ -83,6 +90,12 @@ export default {
         handleAllColumnSummary(data) {
             const { click, download } = data;
             return parseFloat((click / download).toFixed(2));
+        },
+        handleChange() {
+            console.log("change");
+        },
+        handleDragEnd(data, allData) {
+            console.log("drag end", data, allData);
         }
     }
 };
