@@ -3,12 +3,12 @@
         <pivot-table
             :row-summary="true"
             :column-summary="true"
-            :all-row-summary-handle="handleAllRowSummary"
-            :all-column-summary-handle="handleAllColumnSummary"
+            :computed-summary="computedSummary"
             :rows="rows"
             :columns="columns"
             :values="values"
             :data="tableData"
+            :summarys="summarys"
             @on-change="handleChange"
             @on-dragend="handleDragEnd"
         ></pivot-table>
@@ -74,6 +74,38 @@ export default {
                         total += item.download;
                     });
                     return total;
+                }
+            }
+        ],
+        computedSummary: [
+            {
+                name: "新增列",
+                type: "column",
+                handle(data) {
+                    console.log(data);
+                }
+            }
+        ],
+        summarys: [
+            {
+                name: "新增列",
+                type: "column",
+                handle(data) {
+                    console.log(data);
+                }
+            },
+            {
+                name: "新增列",
+                type: "column",
+                handle(data) {
+                    console.log(data);
+                }
+            },
+            {
+                name: "新增行",
+                type: "row",
+                handle(data) {
+                    console.log(data);
                 }
             }
         ],

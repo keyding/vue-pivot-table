@@ -1,7 +1,7 @@
 import combine from './combine';
 
 // compile table head
-// e.g. combinePaths(['a', 'b'], ['c', 'd'], ..., isHasSummary = false)
+// e.g. combinePaths(['a', 'b'], ['c', 'd'], ..., summaryCount)
 export default (...args) => {
     // show summary info, the default is `false`
     let _isHasSummary = false;
@@ -11,7 +11,7 @@ export default (...args) => {
     if (Array.isArray(lastArg)) {
         _isHasSummary = false;
     } else {
-        _isHasSummary = !!lastArg;
+        _isHasSummary = lastArg > 0;
         args.pop();
     }
 
@@ -33,7 +33,10 @@ export default (...args) => {
             );
             const end = paths.filter(item => item.startsWith(total))
                 .length;
-            paths.splice(start + end, 0, total);
+
+            const summarys = [...Array(lastArg)].map(() => total);
+
+            paths.splice(start + end, 0, ...summarys);
         });
     }
 
