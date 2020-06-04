@@ -26,24 +26,29 @@ export default {
             {
                 key: "date",
                 label: "Date"
+                // values: ["2020-06-04", "2020-06-05"]
             },
             {
                 key: "time",
                 label: "Time"
+                // values: ["01:00", "02:00"]
             }
         ],
         columns: [
             {
                 key: "media",
                 label: "Media"
+                // values: ["媒体1", "媒体2"]
             },
             {
                 key: "account",
                 label: "Account"
+                // values: ["账号1", "账号2"]
             },
             {
                 key: "proxy",
                 label: "Proxy"
+                // values: ["代理1", "代理2"]
             }
         ],
         values: [
