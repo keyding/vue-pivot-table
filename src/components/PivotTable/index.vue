@@ -4,18 +4,22 @@
             <tr v-for="(tr, trIndex) in tableData" :key="trIndex">
                 <td
                     v-for="(td, tdIndex) in tr"
+                    :key="tdIndex"
                     :rowspan="td.rowspan"
                     :colspan="td.colspan"
-                    :key="tdIndex"
                 >
                     <div
                         draggable
-                        :class="{ summary: td.isSummary, dragged: td.dragged,}"
-                        :style="{ 'min-height': _getMinHeightByRowCount(td.rowspan) }"
+                        :class="{ summary: td.isSummary, dragged: td.dragged }"
+                        :style="{
+                            'min-height': _getMinHeightByRowCount(td.rowspan),
+                        }"
                         @dragstart="handleDragStart($event, td)"
                         @drag="handleDrag"
                         @dragend="handleDragEnd($event, td)"
-                    >{{ td.value }}</div>
+                    >
+                        {{ td.value }}
+                    </div>
                 </td>
             </tr>
         </table>
@@ -33,7 +37,7 @@ import {
     combinePaths,
     convertPathToMap,
     findCategory,
-    getHeightByCount
+    getHeightByCount,
 } from "./utils";
 import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
 
@@ -50,31 +54,31 @@ export default {
     props: {
         rows: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         columns: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         values: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         // data
         data: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         // display column summary info. The default value is `false`
         columnSummary: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         // display row summary info. The default value is `false`
         rowSummary: {
             type: Array,
-            default: () => []
-        }
+            default: () => [],
+        },
     },
     data: () => ({
         localRows: [],
@@ -82,11 +86,11 @@ export default {
         localValues: [],
         tableData: [],
         // Separator
-        Separator: SEPARATOR
+        Separator: SEPARATOR,
     }),
     computed: {
         rowPaths() {
-            const isSummary = this.rowSummary.length;
+            const isSummary = false; //this.rowSummary.length;
 
             const _paths = combinePaths(
                 ...this.localRows.map(({ values }) => values),
@@ -101,12 +105,12 @@ export default {
             return _paths;
         },
         colPaths() {
-            const isSummary = this.columnSummary.length;
+            const isSummary = false; // this.columnSummary.length;
+            const keys = this.localColumns
+                .map(({ values }) => values)
+                .concat([this.localValues.map(({ key }) => key)]);
 
-            const _paths = combinePaths(
-                ...this.localColumns.map(({ values }) => values),
-                isSummary
-            );
+            const _paths = combinePaths(...keys, isSummary);
 
             if (isSummary) {
                 _paths.push("");
@@ -121,14 +125,14 @@ export default {
                     y: index,
                     rowspan:
                         this.localColumns.length +
-                            Number(Boolean(this.localValues.length)) || 1
+                            Number(Boolean(this.localValues.length)) || 1,
                 });
             });
         },
         colHeads() {
             const _colHeads = this.localColumns.map(() => []);
 
-            const valuesLen = this.localValues.length;
+            // const valuesLen = this.localValues.length;
 
             this.colPaths.forEach((path, pathIndex) => {
                 const values = path.split(this.Separator);
@@ -140,16 +144,17 @@ export default {
 
                     row.push(
                         mergeBaseInfo({
-                            path: currPath.filter(item => !!item),
+                            path: currPath.filter((item) => !!item),
                             value: currVal,
                             x: rowIndex,
                             y:
                                 rowIndex === 0 && this.localRows.length
                                     ? this.localRows.length + pathIndex
                                     : pathIndex,
-                            colspan: valuesLen || 1,
+                            // colspan: valuesLen || 1,
+                            colspan: 1,
                             isSummary:
-                                values.length !== this.localColumns.length
+                                values.length !== this.localColumns.length + 1,
                         })
                     );
                 });
@@ -196,30 +201,51 @@ export default {
             const colCount = _paths.length || 1;
 
             for (let i = 0; i < colCount; i++) {
-                this.localValues.forEach((value, valueIndex) => {
-                    const currPath = _paths[i];
-                    const currPathsLen =
-                        _paths[i] !== undefined
-                            ? _paths[i].split(this.Separator).length
-                            : -1;
-                    const path = currPath ? currPath.split(this.Separator) : [];
-                    const baseX = this.localColumns.length;
-                    const baseY =
-                        this.localRows.length +
-                        i * this.localValues.length +
-                        valueIndex;
-                    const isSummary = currPathsLen !== this.localColumns.length;
+                const _index = i % 2;
+                const currPath = _paths[i];
+                const path = currPath ? currPath.split(this.Separator) : [];
+                const currPathsLen =
+                    _paths[i] !== undefined
+                        ? _paths[i].split(this.Separator).length
+                        : -1;
+                const baseX = this.localColumns.length;
+                const baseY = this.localRows.length + i;
+                const isSummary = currPathsLen !== this.localColumns.length + 1;
 
-                    _valueHeads.push(
-                        mergeBaseInfo({
-                            path,
-                            value: value.label,
-                            x: baseX,
-                            y: baseY,
-                            isSummary
-                        })
-                    );
-                });
+                _valueHeads.push(
+                    mergeBaseInfo({
+                        path,
+                        value: this.localValues[_index].label,
+                        x: baseX,
+                        y: baseY,
+                        isSummary,
+                    })
+                );
+
+                // this.localValues.forEach((value, valueIndex) => {
+                //     const currPath = _paths[i];
+                //     const currPathsLen =
+                //         _paths[i] !== undefined
+                //             ? _paths[i].split(this.Separator).length
+                //             : -1;
+                //     const path = currPath ? currPath.split(this.Separator) : [];
+                //     const baseX = this.localColumns.length;
+                //     const baseY =
+                //         this.localRows.length +
+                //         i * this.localValues.length +
+                //         valueIndex;
+                //     const isSummary = currPathsLen !== this.localColumns.length;
+
+                //     _valueHeads.push(
+                //         mergeBaseInfo({
+                //             path,
+                //             value: value.label,
+                //             x: baseX,
+                //             y: baseY,
+                //             isSummary,
+                //         })
+                //     );
+                // });
             }
 
             return _valueHeads;
@@ -301,14 +327,14 @@ export default {
                     return mergeBaseInfo({
                         path:
                             (currPath.push(_currVal),
-                            currPath.filter(item => !!item)),
+                            currPath.filter((item) => !!item)),
                         value: _currVal,
                         x:
                             this.localColumns.length +
                             +Boolean(this.localValues.length) +
                             index,
                         y: _index,
-                        isSummary: this.localRows.length !== values.length
+                        isSummary: this.localRows.length !== values.length,
                     });
                 });
             });
@@ -325,6 +351,8 @@ export default {
                 this.rowPaths,
                 this.localRows.map(({ key }) => key)
             );
+
+            console.log(colConditions);
 
             // Note: if there are no props.rows or props.column, push an empty object
             !colConditions.length && colConditions.push({});
@@ -357,8 +385,8 @@ export default {
                                 rowConditionIndex;
 
                             const baseY =
-                                this.localRows.length +
-                                colConditionIndex * this.localValues.length;
+                                this.localRows.length + colConditionIndex;
+                            // colConditionIndex * this.localValues.length;
 
                             // the filtered data is passed to the `handle` of `props.values`, return calculated data.
                             // Note: there is no `handle` in the `this.localValues`.
@@ -374,22 +402,35 @@ export default {
                                         x: baseX,
                                         y: baseY,
                                         value: "",
-                                        isSummary
+                                        isSummary,
                                     })
                                 );
                             } else {
-                                cellData = this.values.map((item, index) => {
-                                    return mergeBaseInfo({
-                                        path: conditions,
-                                        x: baseX,
-                                        y: baseY + index,
-                                        key: item.key,
-                                        value: item.handle
-                                            ? item.handle(filterData)
-                                            : "",
-                                        isSummary
-                                    });
+                                const _value = this.values[
+                                    colConditionIndex % 2
+                                ];
+                                cellData = mergeBaseInfo({
+                                    path: conditions,
+                                    x: baseX,
+                                    y: baseY,
+                                    key: _value.key,
+                                    value: _value.handle
+                                        ? _value.handle(filterData)
+                                        : "",
+                                    isSummary,
                                 });
+                                // cellData = this.values.map((item, index) => {
+                                //     return mergeBaseInfo({
+                                //         path: conditions,
+                                //         x: baseX,
+                                //         y: baseY + index,
+                                //         key: item.key,
+                                //         value: item.handle
+                                //             ? item.handle(filterData)
+                                //             : "",
+                                //         isSummary,
+                                //     });
+                                // });
                             }
 
                             return cellData;
@@ -397,18 +438,18 @@ export default {
                         .flat()
             );
 
-            return _dataValues.filter(item => item.length);
+            return _dataValues.filter((item) => item.length);
         },
         computedDataValues() {
             const _dataValues = [];
 
-            this.dataValues.forEach(row => {
-                row.forEach(cell => {
+            this.dataValues.forEach((row) => {
+                row.forEach((cell) => {
                     // if (cell.value !== "" && !cell.isSummary) {
                     if (!cell.isSummary) {
                         _dataValues.push(
                             Object.assign({}, cell.path, {
-                                [cell.key]: cell.value
+                                [cell.key]: cell.value,
                             })
                         );
                     }
@@ -567,7 +608,7 @@ export default {
                 columnSummary,
                 rowSummary,
                 computedColumnSummary,
-                computedRowSummary
+                computedRowSummary,
             } = this;
 
             return {
@@ -578,9 +619,9 @@ export default {
                 columnSummary,
                 rowSummary,
                 computedColumnSummary,
-                computedRowSummary
+                computedRowSummary,
             };
-        }
+        },
     },
     created() {
         this.init();
@@ -613,18 +654,27 @@ export default {
             const columnValues = findCategory(columnKeys, this.localData);
             const rowValues = findCategory(rowKeys, this.localData);
 
-            this.localColumns.forEach(column => {
+            this.localColumns.forEach((column) => {
                 const { key, values } = column;
                 this.$set(column, "values", values || columnValues[key] || []);
             });
 
-            this.localRows.forEach(row => {
+            this.localRows.forEach((row) => {
                 const { key, values } = row;
                 this.$set(row, "values", values || rowValues[key] || []);
             });
         },
         // combination table
         combineTable() {
+            // console.log("colPaths", this.colPaths);
+            // combinePaths(
+            //     ...this.localColumns.map(({ values }) => values),
+            //     isSummary
+            // );
+            // const keys = this.localColumns.map(({ values }) => values);
+            // keys.push(this.localValues.map(({ key }) => key));
+            // console.log(keys);
+            // console.log(combinePaths(...keys, true));
             // console.log("1. rowHeads", this.rowHeads);
             // console.log("2. colHeads", this.colHeads);
             // console.log("3. valueHeads", this.valueHeads);
@@ -639,9 +689,10 @@ export default {
 
             // heads
             let combineColHeads = [...this.colHeads, this.valueHeads];
+            // let combineColHeads = [...this.colHeads];
             combineColHeads[0] = combineColHeads[0] || [];
             combineColHeads[0].unshift(...this.rowHeads);
-            combineColHeads = combineColHeads.filter(item => item.length);
+            combineColHeads = combineColHeads.filter((item) => item.length);
 
             // console.log("6. combineColHeads", combineColHeads);
 
@@ -713,12 +764,12 @@ export default {
                 {
                     rows: [...this.localRows],
                     columns: [...this.localColumns],
-                    data: [...this.computedDataValues]
+                    data: [...this.computedDataValues],
                 }
             );
         },
         _filterData(conditions) {
-            return this.localData.filter(data => {
+            return this.localData.filter((data) => {
                 let status = true;
 
                 for (let key in conditions) {
@@ -756,17 +807,17 @@ export default {
                         value: index === 0 ? "Total" : "",
                         x: this.tableData.length,
                         y: index,
-                        isSummary: true
+                        isSummary: true,
                     })
                 );
 
                 const _filterData = this.colHead.length
-                    ? this.colHead.map(colConditions => {
+                    ? this.colHead.map((colConditions) => {
                           const _conditionValues = colConditions.split(
                               this.SEPARATOR
                           );
 
-                          return this.localData.filter(item =>
+                          return this.localData.filter((item) =>
                               colKeys.every((key, index) =>
                                   _conditionValues[index]
                                       ? _conditionValues[index] === item[key]
@@ -777,9 +828,9 @@ export default {
                     : [this.localData];
 
                 const _data = _filterData
-                    .map(item => {
+                    .map((item) => {
                         return this.localValues.map(({ key }) =>
-                            item.map(sItem => sItem[key])
+                            item.map((sItem) => sItem[key])
                         );
                     })
                     .flat();
@@ -790,7 +841,7 @@ export default {
                             value: this.allRowSummaryHandle(item),
                             x: this.tableData.length,
                             y: _head.length + index,
-                            isSummary: true
+                            isSummary: true,
                         })
                     )
                 );
@@ -808,7 +859,7 @@ export default {
                         value: index === 0 ? "Total" : "",
                         x: index,
                         y: this.tableData[0].length,
-                        isSummary: true
+                        isSummary: true,
                     })
                 );
 
@@ -817,17 +868,17 @@ export default {
                         value: "",
                         x: this.localColumns.length,
                         y: this.tableData[0].length,
-                        isSummary: true
+                        isSummary: true,
                     })
                 );
 
                 const _filterData = this.rowHead.length
-                    ? this.rowHead.map(rowConditions => {
+                    ? this.rowHead.map((rowConditions) => {
                           const _conditionValues = rowConditions.split(
                               this.SEPARATOR
                           );
 
-                          return this.localData.filter(item =>
+                          return this.localData.filter((item) =>
                               rowKeys.every((key, index) =>
                                   _conditionValues[index]
                                       ? _conditionValues[index] === item[key]
@@ -837,10 +888,10 @@ export default {
                       })
                     : [this.localData];
 
-                const _data = _filterData.map(item => {
+                const _data = _filterData.map((item) => {
                     return this.localValues.reduce((prev, curr) => {
                         const _sum = item
-                            .map(i => i[curr.key])
+                            .map((i) => i[curr.key])
                             .reduce((sum, num) => sum + num);
                         return Object.assign({}, prev, { [curr.key]: _sum });
                     }, {});
@@ -852,7 +903,7 @@ export default {
                             value: this.allColumnSummaryHandle(item),
                             x: _head.length + index,
                             y: this.tableData[0].length,
-                            isSummary: true
+                            isSummary: true,
                         })
                     )
                 );
@@ -863,7 +914,7 @@ export default {
                             value: "-",
                             x: _combineCol.length,
                             y: this.tableData[0].length,
-                            isSummary: true
+                            isSummary: true,
                         })
                     );
                 }
@@ -872,14 +923,14 @@ export default {
                     row.concat(_combineCol[rowIndex] || [])
                 );
             }
-        }
+        },
     },
     watch: {
         watchAllProps() {
             this.init();
             this.$emit("on-change");
-        }
-    }
+        },
+    },
 };
 </script>
 
