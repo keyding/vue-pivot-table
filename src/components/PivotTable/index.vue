@@ -1,27 +1,121 @@
 <template>
     <div style="margin: 20px;">
         <table>
-            <tr v-for="(tr, trIndex) in tableData" :key="trIndex">
-                <td
-                    v-for="(td, tdIndex) in tr"
-                    :key="tdIndex"
-                    :rowspan="td.rowspan"
-                    :colspan="td.colspan"
-                >
-                    <div
-                        draggable
-                        :class="{ summary: td.isSummary, dragged: td.dragged }"
-                        :style="{
-                            'min-height': _getMinHeightByRowCount(td.rowspan),
-                        }"
-                        @dragstart="handleDragStart($event, td)"
-                        @drag="handleDrag"
-                        @dragend="handleDragEnd($event, td)"
-                    >
-                        {{ td.value }}
-                    </div>
-                </td>
-            </tr>
+            <template v-for="tr in tableData">
+                <!-- multi row -->
+                <template v-if="Array.isArray(tr[0])">
+                    <tr v-for="(_tr, _trIndex) in tr.slice(1)" :key="_trIndex">
+                        <template v-for="(td, tdIndex) in _tr">
+                            <template v-if="Array.isArray(td)">
+                                <td
+                                    v-for="(_td, _tdIndex) in td.slice(1)"
+                                    :key="tdIndex + _tdIndex + ''"
+                                    :rowspan="_td.rowspan"
+                                    :colspan="_td.colspan"
+                                >
+                                    <div
+                                        draggable
+                                        :class="{
+                                            summary: _td.isSummary,
+                                            dragged: _td.dragged,
+                                        }"
+                                        :style="{
+                                            'min-height': _getMinHeightByRowCount(
+                                                _td.rowspan
+                                            ),
+                                        }"
+                                        @dragstart="
+                                            handleDragStart($event, _td)
+                                        "
+                                        @drag="handleDrag"
+                                        @dragend="handleDragEnd($event, _td)"
+                                    >
+                                        {{ _td.value }}
+                                    </div>
+                                </td>
+                            </template>
+                            <td
+                                v-else
+                                :key="tdIndex"
+                                :rowspan="td.rowspan"
+                                :colspan="td.colspan"
+                            >
+                                <div
+                                    draggable
+                                    :class="{
+                                        summary: td.isSummary,
+                                        dragged: td.dragged,
+                                    }"
+                                    :style="{
+                                        'min-height': _getMinHeightByRowCount(
+                                            td.rowspan
+                                        ),
+                                    }"
+                                    @dragstart="handleDragStart($event, td)"
+                                    @drag="handleDrag"
+                                    @dragend="handleDragEnd($event, td)"
+                                >
+                                    {{ td.value }}
+                                </div>
+                            </td>
+                        </template>
+                    </tr>
+                </template>
+                <tr v-else>
+                    <template v-for="(td, tdIndex) in tr">
+                        <template v-if="Array.isArray(td)">
+                            <td
+                                v-for="(_td, _tdIndex) in td.slice(1)"
+                                :key="tdIndex + _tdIndex + ''"
+                                :rowspan="_td.rowspan"
+                                :colspan="_td.colspan"
+                            >
+                                <div
+                                    draggable
+                                    :class="{
+                                        summary: _td.isSummary,
+                                        dragged: _td.dragged,
+                                    }"
+                                    :style="{
+                                        'min-height': _getMinHeightByRowCount(
+                                            _td.rowspan
+                                        ),
+                                    }"
+                                    @dragstart="handleDragStart($event, _td)"
+                                    @drag="handleDrag"
+                                    @dragend="handleDragEnd($event, _td)"
+                                >
+                                    {{ _td.value }}
+                                </div>
+                            </td>
+                        </template>
+                        <td
+                            v-else
+                            :key="tdIndex"
+                            :rowspan="td.rowspan"
+                            :colspan="td.colspan"
+                        >
+                            <div
+                                draggable
+                                :class="{
+                                    summary: td.isSummary,
+                                    dragged: td.dragged,
+                                }"
+                                :style="{
+                                    'min-height': _getMinHeightByRowCount(
+                                        td.rowspan
+                                    ),
+                                }"
+                                @dragstart="handleDragStart($event, td)"
+                                @drag="handleDrag"
+                                @dragend="handleDragEnd($event, td)"
+                            >
+                                {{ td.value }}
+                            </div>
+                        </td>
+                    </template>
+                </tr>
+            </template>
         </table>
     </div>
 </template>
@@ -45,8 +139,11 @@ import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
 
 /**
  * Feature:
- * - summary title
- * - add computed summary
+ * - empty props checkout
+ * - row-summary/column-summary
+ * - calc summary values
+ * - row-summary selected set
+ * - error v-bind:key
  */
 
 export default {
@@ -90,7 +187,7 @@ export default {
     }),
     computed: {
         rowPaths() {
-            const isSummary = false; //this.rowSummary.length;
+            const isSummary = true; //this.rowSummary.length;
 
             const _paths = combinePaths(
                 ...this.localRows.map(({ values }) => values),
@@ -105,7 +202,7 @@ export default {
             return _paths;
         },
         colPaths() {
-            const isSummary = false; // this.columnSummary.length;
+            const isSummary = true; // this.columnSummary.length;
             const keys = this.localColumns
                 .map(({ values }) => values)
                 .concat([this.localValues.map(({ key }) => key)]);
@@ -130,37 +227,50 @@ export default {
             });
         },
         colHeads() {
-            const _colHeads = this.localColumns.map(() => []);
+            const _rows = this.localColumns.map(() => []);
 
-            // const valuesLen = this.localValues.length;
+            const valuesLen = this.localValues.length;
+
+            if (valuesLen) {
+                _rows.push([]);
+            }
 
             this.colPaths.forEach((path, pathIndex) => {
                 const values = path.split(this.Separator);
+                const isSummary =
+                    values.length !== this.localColumns.length + 1;
                 const currPath = [];
 
-                _colHeads.forEach((row, rowIndex) => {
+                _rows.forEach((row, rowIndex) => {
                     const currVal = values[rowIndex] || "";
                     currPath.push(currVal);
 
-                    row.push(
-                        mergeBaseInfo({
-                            path: currPath.filter((item) => !!item),
-                            value: currVal,
-                            x: rowIndex,
-                            y:
-                                rowIndex === 0 && this.localRows.length
-                                    ? this.localRows.length + pathIndex
-                                    : pathIndex,
-                            // colspan: valuesLen || 1,
-                            colspan: 1,
-                            isSummary:
-                                values.length !== this.localColumns.length + 1,
-                        })
-                    );
+                    const isValueKey =
+                        valuesLen && currVal && rowIndex === _rows.length - 1;
+
+                    const cell = mergeBaseInfo({
+                        path: currPath.filter((item) => !!item),
+                        value: isValueKey
+                            ? this.localValues.find(
+                                  ({ key }) => key === currVal
+                              ).label
+                            : currVal,
+                        x: rowIndex,
+                        y:
+                            rowIndex === 0 && this.localRows.length
+                                ? this.localRows.length + pathIndex
+                                : pathIndex,
+                        // colspan: valuesLen || 1,
+                        colspan: 1,
+                        isSummary,
+                        isHide: isSummary,
+                    });
+
+                    row.push(isSummary ? [cell] : cell);
                 });
             });
 
-            return _colHeads;
+            return _rows;
         },
         /*
             computedColHeads() {
@@ -343,7 +453,9 @@ export default {
             // conditions of col head
             const colConditions = convertPathToMap(
                 this.colPaths,
-                this.localColumns.map(({ key }) => key)
+                this.localColumns
+                    .map(({ key }) => key)
+                    .concat(this.localValues.length ? ["value"] : [])
             );
 
             // conditions of row-head
@@ -352,7 +464,7 @@ export default {
                 this.localRows.map(({ key }) => key)
             );
 
-            console.log(colConditions);
+            // console.log(colConditions);
 
             // Note: if there are no props.rows or props.column, push an empty object
             !colConditions.length && colConditions.push({});
@@ -361,81 +473,107 @@ export default {
             // draw data
             const _dataValues = rowConditions.map(
                 (rowCondition, rowConditionIndex) =>
-                    colConditions
-                        .map((colCondition, colConditionIndex) => {
-                            // the condition of current cell
-                            const conditions = Object.assign(
-                                {},
-                                rowCondition,
-                                colCondition
+                    colConditions.map((colCondition, colConditionIndex) => {
+                        // the condition of current cell
+                        const conditions = Object.assign(
+                            {},
+                            rowCondition,
+                            colCondition
+                        );
+
+                        // console.log(conditions, "hahahhaah");
+
+                        const isSummary = !conditions.value;
+
+                        const _key = conditions.value;
+
+                        delete conditions.value;
+
+                        let cellData = [];
+
+                        // filter the data
+                        const filterData = this._filterData(conditions);
+
+                        // const isSummary =
+                        //     this.pathKeys.length !==
+                        //     Object.keys(conditions).length;
+
+                        const baseX =
+                            this.localColumns.length +
+                            +Boolean(this.localValues.length) +
+                            rowConditionIndex;
+
+                        const baseY = this.localRows.length + colConditionIndex;
+                        // colConditionIndex * this.localValues.length;
+
+                        // the filtered data is passed to the `handle` of `props.values`, return calculated data.
+                        // Note: there is no `handle` in the `this.localValues`.
+                        if (
+                            this.localColumns.length &&
+                            this.localRows.length &&
+                            !this.localValues.length
+                        ) {
+                            // render empty cell
+                            cellData.push(
+                                mergeBaseInfo({
+                                    path: conditions,
+                                    x: baseX,
+                                    y: baseY,
+                                    value: "",
+                                    isSummary,
+                                })
                             );
-
-                            let cellData = [];
-
-                            // filter the data
-                            const filterData = this._filterData(conditions);
-
-                            const isSummary =
-                                this.pathKeys.length !==
-                                Object.keys(conditions).length;
-
-                            const baseX =
-                                this.localColumns.length +
-                                +Boolean(this.localValues.length) +
-                                rowConditionIndex;
-
-                            const baseY =
-                                this.localRows.length + colConditionIndex;
-                            // colConditionIndex * this.localValues.length;
-
-                            // the filtered data is passed to the `handle` of `props.values`, return calculated data.
-                            // Note: there is no `handle` in the `this.localValues`.
-                            if (
-                                this.localColumns.length &&
-                                this.localRows.length &&
-                                !this.localValues.length
-                            ) {
-                                // render empty cell
-                                cellData.push(
+                        } else {
+                            // const _value = this.values[
+                            //     colConditionIndex % 2
+                            // ];
+                            if (isSummary) {
+                                cellData = [
                                     mergeBaseInfo({
                                         path: conditions,
                                         x: baseX,
                                         y: baseY,
+                                        key: _key,
                                         value: "",
+                                        isHide: isSummary,
                                         isSummary,
-                                    })
-                                );
-                            } else {
-                                const _value = this.values[
-                                    colConditionIndex % 2
+                                    }),
                                 ];
+                            } else {
+                                const _value = this.values.find(
+                                    ({ key }) => key === _key
+                                );
+
                                 cellData = mergeBaseInfo({
                                     path: conditions,
                                     x: baseX,
                                     y: baseY,
-                                    key: _value.key,
+                                    key: _key,
                                     value: _value.handle
                                         ? _value.handle(filterData)
                                         : "",
+                                    isHide: isSummary,
                                     isSummary,
                                 });
-                                // cellData = this.values.map((item, index) => {
-                                //     return mergeBaseInfo({
-                                //         path: conditions,
-                                //         x: baseX,
-                                //         y: baseY + index,
-                                //         key: item.key,
-                                //         value: item.handle
-                                //             ? item.handle(filterData)
-                                //             : "",
-                                //         isSummary,
-                                //     });
-                                // });
                             }
 
-                            return cellData;
-                        })
-                        .flat()
+                            // cellData = this.values.map((item, index) => {
+                            //     return mergeBaseInfo({
+                            //         path: conditions,
+                            //         x: baseX,
+                            //         y: baseY + index,
+                            //         key: item.key,
+                            //         value: item.handle
+                            //             ? item.handle(filterData)
+                            //             : "",
+                            //         isSummary,
+                            //     });
+                            // });
+                        }
+
+                        return cellData;
+                    })
+                // .flat()
             );
 
             return _dataValues.filter((item) => item.length);
@@ -632,6 +770,53 @@ export default {
                 this.handleDataClone();
                 this.setValuesToColAndRow();
                 this.combineTable();
+
+                setTimeout(() => {
+                    this.tableData.forEach((row) => {
+                        // multi row
+                        if (Array.isArray(row[0])) {
+                            row.forEach((_row) => {
+                                _row.forEach((cell) => {
+                                    if (Array.isArray(cell)) {
+                                        const _cell = Object.assign(
+                                            {},
+                                            cell[0],
+                                            { value: "计算列", x: 0, y: 0 }
+                                        );
+                                        cell.push(_cell);
+                                        console.log(_cell);
+                                    }
+                                });
+                            });
+                        } else {
+                            row.forEach((cell) => {
+                                if (Array.isArray(cell)) {
+                                    const _cell = Object.assign({}, cell[0], {
+                                        value: "计算列",
+                                        x: 0,
+                                        y: 0,
+                                    });
+                                    cell.push(_cell);
+                                    console.log(_cell);
+                                }
+                            });
+                        }
+                    });
+
+                    console.log(this.tableData);
+                }, 300);
+
+                setTimeout(() => {
+                    this.tableData.forEach((row) => {
+                        if (Array.isArray(row[0])) {
+                            const _row = JSON.parse(JSON.stringify(row[0]));
+                            _row.forEach((col) => {
+                                col.value = "计算行";
+                            });
+                            row.push(_row, _row);
+                        }
+                    });
+                }, 500);
             } else {
                 console.warn(
                     "[Warn]: props.rows, props.columns, props.values at least one is not empty."
@@ -688,8 +873,8 @@ export default {
             // console.log("this.computedValueHeads", this.computedValueHeads);
 
             // heads
-            let combineColHeads = [...this.colHeads, this.valueHeads];
-            // let combineColHeads = [...this.colHeads];
+            // let combineColHeads = [...this.colHeads, this.valueHeads];
+            let combineColHeads = [...this.colHeads];
             combineColHeads[0] = combineColHeads[0] || [];
             combineColHeads[0].unshift(...this.rowHeads);
             combineColHeads = combineColHeads.filter((item) => item.length);
@@ -705,7 +890,13 @@ export default {
             for (let i = 0; i < valueRowCount; i++) {
                 const _currRowHeadValue = this.rowHeadValues[i] || [];
                 const _currValue = this.dataValues[i] || [];
-                combineValues.push([..._currRowHeadValue, ..._currValue]);
+                const _row = [..._currRowHeadValue, ..._currValue];
+
+                if (_row[0].isSummary) {
+                    combineValues.push([_row]);
+                } else {
+                    combineValues.push(_row);
+                }
             }
 
             // console.log("7. valueRowCount", valueRowCount);
@@ -714,7 +905,7 @@ export default {
 
             this.tableData = [...combineColHeads, ...combineValues];
 
-            // console.log("9. tabledata", this.tableData);
+            console.log("9. tabledata", this.tableData);
         },
         // drag cell start
         handleDragStart(e, data) {
