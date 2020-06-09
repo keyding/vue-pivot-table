@@ -23,31 +23,31 @@ export default {
         rows: [
             {
                 key: "date",
-                label: "Date"
+                label: "Date",
                 // values: ["2020-06-04", "2020-06-05"]
             },
             {
                 key: "time",
-                label: "Time"
+                label: "Time",
                 // values: ["01:00", "02:00"]
-            }
+            },
         ],
         columns: [
             {
                 key: "media",
-                label: "Media"
+                label: "Media",
                 // values: ["媒体1", "媒体2"]
             },
             {
                 key: "account",
-                label: "Account"
+                label: "Account",
                 // values: ["账号1", "账号2"]
             },
             {
                 key: "proxy",
-                label: "Proxy"
+                label: "Proxy",
                 // values: ["代理1", "代理2"]
-            }
+            },
         ],
         values: [
             {
@@ -56,11 +56,11 @@ export default {
                 handle(data) {
                     if (!data.length) return "";
                     let total = 0;
-                    data.forEach(item => {
+                    data.forEach((item) => {
                         total += item.click;
                     });
                     return total;
-                }
+                },
             },
             {
                 key: "download",
@@ -68,51 +68,39 @@ export default {
                 handle(data) {
                     if (!data.length) return "";
                     let total = 0;
-                    data.forEach(item => {
+                    data.forEach((item) => {
                         total += item.download;
                     });
                     return total;
-                }
-            }
-        ],
-        computedSummary: [
-            {
-                name: "新增列",
-                type: "column",
-                handle(data) {
-                    console.log(data);
-                }
-            }
+                },
+            },
         ],
         rowSummarys: [
             {
-                name: "新增行",
-                type: "row",
+                label: "新增行",
                 handle(data) {
                     console.log(data);
-                }
-            }
+                },
+            },
         ],
         columnSummarys: [
             {
                 name: "新增列",
-                type: "column",
                 handle(data) {
                     console.log(data);
-                }
+                },
             },
             {
-                name: "新增列",
-                type: "column",
+                name: "新增列1",
                 handle(data) {
                     console.log(data);
-                }
-            }
+                },
+            },
         ],
-        tableData: DEMODATA
+        tableData: DEMODATA,
     }),
     components: {
-        PivotTable
+        PivotTable,
     },
     // mounted() {
     //     setTimeout(() => {
@@ -133,8 +121,8 @@ export default {
         },
         handleDragEnd(data, allData) {
             console.log("drag end", data, allData);
-        }
-    }
+        },
+    },
 };
 </script>
 

@@ -3,15 +3,33 @@
         <table>
             <template v-for="(tr, trIndex) in tableData">
                 <tr
-                    v-for="(_tr, _trIndex) in Array.isArray(tr[0]) ? tr.slice(1) : [tr]"
+                    v-for="(_tr, _trIndex) in Array.isArray(tr[0])
+                        ? tr.slice(1)
+                        : [tr]"
                     :key="'' + trIndex + _trIndex"
                     :index="'' + trIndex + _trIndex"
                 >
                     <template v-for="(td, tdIndex) in _tr">
                         <td
-                            v-for="(_td, _tdIndex) in Array.isArray(td) ? td.slice(1) : [td]"
-                            :key="'' + trIndex + _trIndex + tdIndex + _tdIndex + ''"
-                            :index="'' + trIndex + _trIndex + tdIndex + _tdIndex + ''"
+                            v-for="(_td, _tdIndex) in Array.isArray(td)
+                                ? td.slice(1)
+                                : [td]"
+                            :key="
+                                '' +
+                                    trIndex +
+                                    _trIndex +
+                                    tdIndex +
+                                    _tdIndex +
+                                    ''
+                            "
+                            :index="
+                                '' +
+                                    trIndex +
+                                    _trIndex +
+                                    tdIndex +
+                                    _tdIndex +
+                                    ''
+                            "
                             :rowspan="_td.rowspan"
                             :colspan="_td.colspan"
                         >
@@ -29,7 +47,9 @@
                                 @dragstart="handleDragStart($event, _td)"
                                 @drag="handleDrag"
                                 @dragend="handleDragEnd($event, _td)"
-                            >{{ _td.value }}</div>
+                            >
+                                {{ _td.value }}
+                            </div>
                         </td>
                     </template>
                 </tr>
@@ -49,7 +69,8 @@ import {
     combinePaths,
     convertPathToMap,
     findCategory,
-    getHeightByCount
+    getHeightByCount,
+    randomString,
 } from "./utils";
 import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
 
@@ -58,10 +79,8 @@ import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
 /**
  * Feature:
  * - empty props checkout
- * - row-summary/column-summary
- * - calc summary values
- * - row-summary selected set
- * - error v-bind:key
+ * - 新增列时，需要将新增列的计算后的结果和条件存入 calcData 中，并在 cell 中保存对应的 key
+ * - 新增行时，直接通过key 和 条件来查找对应的计算列的汇总
  */
 
 export default {
@@ -69,67 +88,62 @@ export default {
     props: {
         rows: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         columns: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         values: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         // data
         data: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         // display column summary info. The default value is `false`
         columnSummary: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         // display row summary info. The default value is `false`
         rowSummary: {
             type: Array,
-            default: () => []
-        }
+            default: () => [],
+        },
     },
     data: () => ({
         localRows: [],
         localColumns: [],
         localValues: [],
         tableData: [],
+        localRowSummary: [],
+        localColumnSummary: [],
+        calcData: [],
         // Separator
-        Separator: SEPARATOR
+        Separator: SEPARATOR,
     }),
     computed: {
         rowPaths() {
-            const isSummary = true; //this.rowSummary.length;
-
             const _paths = combinePaths(
                 ...this.localRows.map(({ values }) => values),
-                isSummary
+                true
             );
 
-            // total summary
-            if (isSummary) {
-                _paths.push("");
-            }
+            _paths.push("");
 
             return _paths;
         },
         colPaths() {
-            const isSummary = true; // this.columnSummary.length;
             const keys = this.localColumns
                 .map(({ values }) => values)
                 .concat([this.localValues.map(({ key }) => key)]);
 
-            const _paths = combinePaths(...keys, isSummary);
+            const _paths = combinePaths(...keys, true);
 
-            if (isSummary) {
-                _paths.push("");
-            }
+            _paths.push("");
 
             return _paths;
         },
@@ -141,7 +155,7 @@ export default {
                     _index: `0-${index}`,
                     rowspan:
                         this.localColumns.length +
-                            Number(Boolean(this.localValues.length)) || 1
+                            Number(Boolean(this.localValues.length)) || 1,
                 });
             });
         },
@@ -175,7 +189,7 @@ export default {
                             : pathIndex;
 
                     const cell = mergeBaseInfo({
-                        path: currPath.filter(item => !!item),
+                        path: currPath.filter((item) => !!item),
                         value: isValueKey
                             ? this.localValues.find(
                                   ({ key }) => key === currVal
@@ -184,7 +198,7 @@ export default {
                         x: baseX,
                         y: baseY,
                         _index: `${baseX}-${baseY}`,
-                        isSummary
+                        isSummary,
                     });
 
                     row.push(isSummary ? [cell] : cell);
@@ -245,12 +259,12 @@ export default {
                     currPath.push(_currVal);
 
                     return mergeBaseInfo({
-                        path: currPath.filter(item => !!item),
+                        path: currPath.filter((item) => !!item),
                         value: _currVal,
                         x: baseX,
                         y: baseY,
                         _index: `${baseX}-${baseY}`,
-                        isSummary
+                        isSummary,
                     });
                 });
             });
@@ -330,7 +344,7 @@ export default {
                                         y: baseY,
                                         value: "",
                                         isSummary,
-                                        _index: `${baseX}-${baseY}`
+                                        _index: `${baseX}-${baseY}`,
                                     })
                                 );
                             } else {
@@ -343,8 +357,8 @@ export default {
                                             key: _key,
                                             value: "",
                                             isSummary,
-                                            _index: `${baseX}-${baseY}`
-                                        })
+                                            _index: `${baseX}-${baseY}`,
+                                        }),
                                     ];
                                 } else {
                                     const _value = this.values.find(
@@ -360,7 +374,7 @@ export default {
                                             ? _value.handle(filterData)
                                             : "",
                                         isSummary,
-                                        _index: `${baseX}-${baseY}`
+                                        _index: `${baseX}-${baseY}`,
                                     });
                                 }
                             }
@@ -375,9 +389,180 @@ export default {
 
             console.log("_dataValues", _dataValues);
 
-            return _dataValues.filter(item => item.length);
+            return _dataValues.filter((item) => item.length);
         },
-        computedDataValues() {
+        pathKeys() {
+            return this.localRows
+                .map(({ key }) => key)
+                .concat(this.localColumns.map(({ key }) => key));
+        },
+        // monitor all props value changes
+        watchAllProps() {
+            const {
+                rows,
+                columns,
+                values,
+                data,
+                columnSummary,
+                rowSummary,
+            } = this;
+
+            return {
+                rows,
+                columns,
+                values,
+                data,
+                columnSummary,
+                rowSummary,
+            };
+        },
+    },
+    created() {
+        this.init();
+    },
+    methods: {
+        init() {
+            if (this.rows.length || this.columns.length || this.values) {
+                this.handleDataClone();
+                this.setValuesToColAndRow();
+                this.combineTable();
+                this.handleCalcData();
+                this.handleSummary();
+            } else {
+                console.warn(
+                    "[Warn]: props.rows, props.columns, props.values at least one is not empty."
+                );
+                // this.tableData = [];
+            }
+        },
+        // clone data
+        handleDataClone() {
+            this.localColumns = deepClone(this.columns);
+            this.localRows = deepClone(this.rows);
+            // Note: this.localValues can't clone handle function.
+            this.localValues = deepClone(this.values);
+            this.localData = Object.freeze(this.data);
+
+            this.localRowSummary = this.rowSummary.map((item) =>
+                Object.assign(
+                    {},
+                    { ...item },
+                    { key: item.key || randomString() }
+                )
+            );
+
+            this.localColumnSummary = this.columnSummary.map((item) =>
+                Object.assign(
+                    {},
+                    { ...item },
+                    { key: item.key || randomString() }
+                )
+            );
+        },
+        // set the `values` attribute to rows and columns
+        setValuesToColAndRow() {
+            const columnKeys = this.localColumns.map(({ key }) => key);
+            const rowKeys = this.localRows.map(({ key }) => key);
+            const columnValues = findCategory(columnKeys, this.localData);
+            const rowValues = findCategory(rowKeys, this.localData);
+
+            this.localColumns.forEach((column) => {
+                const { key, values } = column;
+                this.$set(column, "values", values || columnValues[key] || []);
+            });
+
+            this.localRows.forEach((row) => {
+                const { key, values } = row;
+                this.$set(row, "values", values || rowValues[key] || []);
+            });
+        },
+        // combine table heads
+        handleCombineHeads() {
+            let combineColHeads = [...this.colHeads];
+            combineColHeads[0] = combineColHeads[0] || [];
+            combineColHeads[0].unshift(...this.rowHeads);
+            combineColHeads = combineColHeads.filter((item) => item.length);
+
+            // console.log("6. combineColHeads", combineColHeads);
+
+            this.combineHeads = combineColHeads;
+        },
+        // combine table values
+        handleCombineValues() {
+            // values
+            const combineValues = [];
+
+            const valueRowCount =
+                this.dataValues.length || this.rowHeadValues.length;
+
+            for (let i = 0; i < valueRowCount; i++) {
+                const _currRowHeadValue = this.rowHeadValues[i] || [];
+                const _currValue = this.dataValues[i] || [];
+                const _row = [..._currRowHeadValue, ..._currValue];
+
+                if (_row[0].isSummary) {
+                    _row.forEach((item) => {
+                        if (!Array.isArray(item)) {
+                            item.isSummary = true;
+                        }
+                    });
+                    combineValues.push([_row]);
+                } else {
+                    combineValues.push(_row);
+                }
+            }
+
+            // console.log("7. valueRowCount", valueRowCount);
+
+            // console.log("8. combineValues", combineValues);
+
+            this.combineValues = combineValues;
+        },
+        // combination table
+        combineTable() {
+            this.handleCombineHeads();
+            this.handleCombineValues();
+            this.tableData = [...this.combineHeads, ...this.combineValues];
+
+            // console.log("colPaths", this.colPaths);
+            // combinePaths(
+            //     ...this.localColumns.map(({ values }) => values),
+            //     isSummary
+            // );
+            // const keys = this.localColumns.map(({ values }) => values);
+            // keys.push(this.localValues.map(({ key }) => key));
+            // console.log(keys);
+            // console.log(combinePaths(...keys, true));
+            // console.log("1. rowHeads", this.rowHeads);
+            // console.log("2. colHeads", this.colHeads);
+            // console.log("3. valueHeads", this.valueHeads);
+            // console.log("4. rowHeadValues", this.rowHeadValues);
+            // console.log("5. dataValues", this.dataValues);
+
+            // console.log("this.computedColHeads", this.computedColHeads);
+
+            // console.log("this.computedValueHeads", this.computedValueHeads);
+
+            // heads
+            // let combineColHeads = [...this.colHeads, this.valueHeads];
+
+            // console.log("9. tabledata", this.tableData);
+        },
+        handleSummary() {
+            if (this.localColumnSummary.length) {
+                this.localColumnSummary.forEach((item) => {
+                    this.handleAddColumnSummary();
+                });
+            }
+
+            if (this.localRowSummary.length) {
+                this.localRowSummary.forEach((item) => {
+                    this.handleAddRowSummary();
+                });
+            }
+        },
+        // set calc data
+        handleCalcData() {
             const _colPaths = combinePaths(
                 ...this.localColumns.map(({ values }) => values)
             );
@@ -401,8 +586,8 @@ export default {
             !rowConditions.length && rowConditions.push({});
 
             // draw data
-            const _dataValues = rowConditions.map(
-                (rowCondition, rowConditionIndex) =>
+            this.calcData = rowConditions
+                .map((rowCondition, rowConditionIndex) =>
                     colConditions.map((colCondition, colConditionIndex) => {
                         // the condition of current cell
                         const conditions = Object.assign(
@@ -437,252 +622,115 @@ export default {
 
                         return Object.assign({}, conditions, _values);
                     })
-            );
-
-            return _dataValues.filter(item => item.length).flat();
-        },
-        pathKeys() {
-            return this.localRows
-                .map(({ key }) => key)
-                .concat(this.localColumns.map(({ key }) => key));
-        },
-        // monitor all props value changes
-        watchAllProps() {
-            const {
-                rows,
-                columns,
-                values,
-                data,
-                columnSummary,
-                rowSummary,
-                computedColumnSummary,
-                computedRowSummary
-            } = this;
-
-            return {
-                rows,
-                columns,
-                values,
-                data,
-                columnSummary,
-                rowSummary,
-                computedColumnSummary,
-                computedRowSummary
-            };
-        }
-    },
-    created() {
-        this.init();
-    },
-    methods: {
-        init() {
-            if (this.rows.length || this.columns.length || this.values) {
-                this.handleDataClone();
-                this.setValuesToColAndRow();
-                this.combineTable();
-
-                setTimeout(() => {
-                    this.handleAddColumnSummary();
-                    this.handleAddRowSummary();
-                    setTimeout(() => {
-                        this.handleAddColumnSummary();
-                    }, 200);
-                    // this.handleAddColumnSummary();
-                }, 300);
-            } else {
-                console.warn(
-                    "[Warn]: props.rows, props.columns, props.values at least one is not empty."
-                );
-                // this.tableData = [];
-            }
-        },
-        // clone data
-        handleDataClone() {
-            this.localColumns = deepClone(this.columns);
-            this.localRows = deepClone(this.rows);
-            // Note: this.localValues can't clone handle function.
-            this.localValues = deepClone(this.values);
-            this.localData = Object.freeze(this.data);
-        },
-        // set the `values` attribute to rows and columns
-        setValuesToColAndRow() {
-            const columnKeys = this.localColumns.map(({ key }) => key);
-            const rowKeys = this.localRows.map(({ key }) => key);
-            const columnValues = findCategory(columnKeys, this.localData);
-            const rowValues = findCategory(rowKeys, this.localData);
-
-            this.localColumns.forEach(column => {
-                const { key, values } = column;
-                this.$set(column, "values", values || columnValues[key] || []);
-            });
-
-            this.localRows.forEach(row => {
-                const { key, values } = row;
-                this.$set(row, "values", values || rowValues[key] || []);
-            });
-        },
-        // combine table heads
-        handleCombineHeads() {
-            let combineColHeads = [...this.colHeads];
-            combineColHeads[0] = combineColHeads[0] || [];
-            combineColHeads[0].unshift(...this.rowHeads);
-            combineColHeads = combineColHeads.filter(item => item.length);
-
-            // console.log("6. combineColHeads", combineColHeads);
-
-            this.combineHeads = combineColHeads;
-        },
-        // combine table values
-        handleCombineValues() {
-            // values
-            const combineValues = [];
-
-            const valueRowCount =
-                this.dataValues.length || this.rowHeadValues.length;
-
-            for (let i = 0; i < valueRowCount; i++) {
-                const _currRowHeadValue = this.rowHeadValues[i] || [];
-                const _currValue = this.dataValues[i] || [];
-                const _row = [..._currRowHeadValue, ..._currValue];
-
-                if (_row[0].isSummary) {
-                    _row.forEach(item => {
-                        if (!Array.isArray(item)) {
-                            item.isSummary = true;
-                        }
-                    });
-                    combineValues.push([_row]);
-                } else {
-                    combineValues.push(_row);
-                }
-            }
-
-            // console.log("7. valueRowCount", valueRowCount);
-
-            // console.log("8. combineValues", combineValues);
-
-            this.combineValues = combineValues;
-        },
-        // combination table
-        combineTable() {
-            this.handleCombineHeads();
-            this.handleCombineValues();
-
-            // console.log("colPaths", this.colPaths);
-            // combinePaths(
-            //     ...this.localColumns.map(({ values }) => values),
-            //     isSummary
-            // );
-            // const keys = this.localColumns.map(({ values }) => values);
-            // keys.push(this.localValues.map(({ key }) => key));
-            // console.log(keys);
-            // console.log(combinePaths(...keys, true));
-            // console.log("1. rowHeads", this.rowHeads);
-            // console.log("2. colHeads", this.colHeads);
-            // console.log("3. valueHeads", this.valueHeads);
-            // console.log("4. rowHeadValues", this.rowHeadValues);
-            // console.log("5. dataValues", this.dataValues);
-
-            // console.log("this.computedDataValues", this.computedDataValues);
-
-            // console.log("this.computedColHeads", this.computedColHeads);
-
-            // console.log("this.computedValueHeads", this.computedValueHeads);
-
-            // heads
-            // let combineColHeads = [...this.colHeads, this.valueHeads];
-            this.tableData = [...this.combineHeads, ...this.combineValues];
-
-            // console.log("9. tabledata", this.tableData);
+                )
+                .filter((item) => item.length)
+                .flat();
         },
         // add column summary
         handleAddColumnSummary() {
-            this.combineHeads.forEach((headRow, headRowIndex) => {
-                headRow.forEach(cell => {
-                    if (Array.isArray(cell)) {
-                        const isLastRow =
-                            headRowIndex === this.combineHeads.length - 1;
+            this.$nextTick(() => {
+                this.combineHeads.forEach((headRow, headRowIndex) => {
+                    headRow.forEach((cell) => {
+                        if (Array.isArray(cell)) {
+                            const isLastRow =
+                                headRowIndex === this.combineHeads.length - 1;
 
-                        cell.push(
-                            Object.assign({}, cell[0], {
-                                y: "to-be-calc",
-                                value: isLastRow ? "计算列" : cell[0].value
-                            })
-                        );
-                    }
-                });
-            });
-
-            // console.log("this.combineHeads", this.combineHeads);
-            // console.log("this.combineValues", this.combineValues);
-            // console.log(this.computedDataValues);
-
-            const _handle = data => {
-                let clicks = 0;
-                let downloads = 0;
-
-                data.forEach(({ click, download }) => {
-                    clicks += +click;
-                    downloads += +download;
-                });
-
-                const result = clicks / downloads;
-
-                return Number.isNaN(result)
-                    ? ""
-                    : (result * 100).toFixed(2) + "%";
-            };
-
-            const handleValueRow = (row = []) => {
-                row.forEach(cell => {
-                    if (Array.isArray(cell)) {
-                        const _filterData = this._filterData(
-                            cell[0].path,
-                            this.computedDataValues
-                        );
-                        cell.push(
-                            Object.assign({}, cell[0], {
-                                y: "to-be-calc",
-                                value: _handle(_filterData)
-                            })
-                        );
-                    }
-                });
-            };
-
-            this.combineValues.forEach((valueRow, valueRowIndex) => {
-                if (Array.isArray(valueRow[0])) {
-                    valueRow.forEach(row => {
-                        handleValueRow(row);
+                            cell.push(
+                                Object.assign({}, cell[0], {
+                                    y: "to-be-calc",
+                                    value: isLastRow ? "计算列" : cell[0].value,
+                                })
+                            );
+                        }
                     });
-                } else {
-                    handleValueRow(valueRow);
-                }
-            });
+                });
 
-            this.tableData = [...this.combineHeads, ...this.combineValues];
+                // console.log("this.combineHeads", this.combineHeads);
+                // console.log("this.combineValues", this.combineValues);
+                // console.log(this.calcData, "this.calcData");
+
+                const _handle = (data) => {
+                    let clicks = 0;
+                    let downloads = 0;
+
+                    data.forEach(({ click, download }) => {
+                        clicks += +click;
+                        downloads += +download;
+                    });
+
+                    const result = clicks / downloads;
+
+                    return Number.isNaN(result)
+                        ? ""
+                        : (result * 100).toFixed(2) + "%";
+                };
+
+                const handleValueRow = (row = []) => {
+                    row.forEach((cell) => {
+                        if (Array.isArray(cell)) {
+                            const _filterData = this._filterData(
+                                cell[0].path,
+                                this.calcData
+                            );
+                            cell.push(
+                                Object.assign({}, cell[0], {
+                                    y: "to-be-calc",
+                                    value: _handle(_filterData),
+                                })
+                            );
+                        }
+                    });
+                };
+
+                this.combineValues.forEach((valueRow, valueRowIndex) => {
+                    if (Array.isArray(valueRow[0])) {
+                        valueRow.forEach((row) => {
+                            handleValueRow(row);
+                        });
+                    } else {
+                        handleValueRow(valueRow);
+                    }
+                });
+
+                this.tableData = [...this.combineHeads, ...this.combineValues];
+            });
         },
         // add row summary
         handleAddRowSummary() {
-            console.log(this.combineValues, "this.combineValues");
-            this.combineValues.forEach(valueRow => {
-                if (Array.isArray(valueRow[0])) {
-                    const _cloneRow = JSON.parse(JSON.stringify(valueRow[0]));
+            const handle = (data) => {};
 
-                    _cloneRow.forEach(cell => {
-                        if (Array.isArray(cell)) {
-                            cell.forEach(_cell => {
-                                _cell.value = "-";
-                            });
-                        } else {
-                            cell.value = "-";
-                        }
-                    });
-                    valueRow.push(_cloneRow);
-                }
+            this.$nextTick(() => {
+                this.combineValues.forEach((valueRow) => {
+                    if (Array.isArray(valueRow[0])) {
+                        const _cloneRow = JSON.parse(
+                            JSON.stringify(valueRow[0])
+                        );
+
+                        // console.log(_cloneRow, "_cloneRow");
+
+                        _cloneRow.forEach((cell, index) => {
+                            if (Array.isArray(cell)) {
+                                cell.slice(1).forEach((_cell) => {
+                                    console.log(_cell.path);
+                                    _cell.value = "[" + index + "]";
+                                });
+                            } else {
+                                const _filterData = this._filterData(
+                                    cell.path,
+                                    this.calcData
+                                );
+                                // cell.value = "-";
+                                console.log(cell.path, cell.key);
+                            }
+                        });
+                        valueRow.push(_cloneRow);
+                    }
+                });
+
+                console.log("this.combineValues", this.combineValues);
+
+                this.tableData = [...this.combineHeads, ...this.combineValues];
             });
-
-            this.tableData = [...this.combineHeads, ...this.combineValues];
         },
         // recalc the position(x-y)
         // drag cell start
@@ -733,12 +781,12 @@ export default {
                 {
                     rows: [...this.localRows],
                     columns: [...this.localColumns],
-                    data: [...this.computedDataValues]
+                    data: [...this.calcData],
                 }
             );
         },
         _filterData(conditions, data) {
-            return data.filter(data => {
+            return data.filter((data) => {
                 let status = true;
 
                 for (let key in conditions) {
@@ -754,14 +802,14 @@ export default {
         // get min height by rowspan
         _getMinHeightByRowCount(count) {
             return getHeightByCount(count);
-        }
+        },
     },
     watch: {
         watchAllProps() {
             this.init();
             this.$emit("on-change");
-        }
-    }
+        },
+    },
 };
 </script>
 
