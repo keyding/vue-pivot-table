@@ -79,7 +79,7 @@ import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
 /**
  * Feature:
  * - empty props checkout
- * - 新增列时，需要将新增列的计算后的结果和条件存入 calcData 中，并在 cell 中保存对应的 key
+ * - √ 新增列时，需要将新增列的计算后的结果和条件存入 calcData 中，并在 cell 中保存对应的 key
  * - 新增行时，直接通过key 和 条件来查找对应的计算列的汇总
  */
 
@@ -122,6 +122,7 @@ export default {
         localRowSummary: [],
         localColumnSummary: [],
         calcData: [],
+        columnSummaryCalcData: [],
         // Separator
         Separator: SEPARATOR,
     }),
@@ -586,49 +587,53 @@ export default {
             !rowConditions.length && rowConditions.push({});
 
             // draw data
-            this.calcData = rowConditions
-                .map((rowCondition, rowConditionIndex) =>
-                    colConditions.map((colCondition, colConditionIndex) => {
-                        // the condition of current cell
-                        const conditions = Object.assign(
-                            {},
-                            rowCondition,
-                            colCondition
-                        );
+            this.calcData = Object.freeze(
+                rowConditions
+                    .map((rowCondition, rowConditionIndex) =>
+                        colConditions.map((colCondition, colConditionIndex) => {
+                            // the condition of current cell
+                            const conditions = Object.assign(
+                                {},
+                                rowCondition,
+                                colCondition
+                            );
 
-                        const cellData = {};
+                            const cellData = {};
 
-                        // filter the data
-                        const filterData = this._filterData(
-                            conditions,
-                            this.localData
-                        );
+                            // filter the data
+                            const filterData = this._filterData(
+                                conditions,
+                                this.localData
+                            );
 
-                        // empty cell
-                        const isEmptyCell =
-                            this.localColumns.length &&
-                            this.localRows.length &&
-                            !this.localValues.length;
+                            // empty cell
+                            const isEmptyCell =
+                                this.localColumns.length &&
+                                this.localRows.length &&
+                                !this.localValues.length;
 
-                        const _values = {};
+                            const _values = {};
 
-                        this.values.forEach(({ key, handle }) => {
-                            _values[key] = isEmptyCell
-                                ? ""
-                                : handle
-                                ? handle(filterData)
-                                : "";
-                        });
+                            this.values.forEach(({ key, handle }) => {
+                                _values[key] = isEmptyCell
+                                    ? ""
+                                    : handle
+                                    ? handle(filterData)
+                                    : "";
+                            });
 
-                        return Object.assign({}, conditions, _values);
-                    })
-                )
-                .filter((item) => item.length)
-                .flat();
+                            return Object.assign({}, conditions, _values);
+                        })
+                    )
+                    .filter((item) => item.length)
+                    .flat()
+            );
         },
         // add column summary
         handleAddColumnSummary() {
             this.$nextTick(() => {
+                const { key, label, handle } = this.localColumnSummary.shift();
+
                 this.combineHeads.forEach((headRow, headRowIndex) => {
                     headRow.forEach((cell) => {
                         if (Array.isArray(cell)) {
@@ -638,7 +643,7 @@ export default {
                             cell.push(
                                 Object.assign({}, cell[0], {
                                     y: "to-be-calc",
-                                    value: isLastRow ? "计算列" : cell[0].value,
+                                    value: isLastRow ? label : cell[0].value,
                                 })
                             );
                         }
@@ -647,23 +652,25 @@ export default {
 
                 // console.log("this.combineHeads", this.combineHeads);
                 // console.log("this.combineValues", this.combineValues);
-                // console.log(this.calcData, "this.calcData");
+                console.log(this.calcData, "this.calcData");
 
-                const _handle = (data) => {
-                    let clicks = 0;
-                    let downloads = 0;
+                // const _handle = (data) => {
+                //     let clicks = 0;
+                //     let downloads = 0;
 
-                    data.forEach(({ click, download }) => {
-                        clicks += +click;
-                        downloads += +download;
-                    });
+                //     data.forEach(({ click, download }) => {
+                //         clicks += +click;
+                //         downloads += +download;
+                //     });
 
-                    const result = clicks / downloads;
+                //     const result = clicks / downloads;
 
-                    return Number.isNaN(result)
-                        ? ""
-                        : (result * 100).toFixed(2) + "%";
-                };
+                //     return Number.isNaN(result)
+                //         ? ""
+                //         : (result * 100).toFixed(2) + "%";
+                // };
+
+                const _calcData = [];
 
                 const handleValueRow = (row = []) => {
                     row.forEach((cell) => {
@@ -672,10 +679,19 @@ export default {
                                 cell[0].path,
                                 this.calcData
                             );
+                            const value = handle(_filterData);
+
                             cell.push(
                                 Object.assign({}, cell[0], {
                                     y: "to-be-calc",
-                                    value: _handle(_filterData),
+                                    value,
+                                    key,
+                                })
+                            );
+
+                            _calcData.push(
+                                Object.assign({}, cell[0].path, {
+                                    [key]: value,
                                 })
                             );
                         }
@@ -692,12 +708,22 @@ export default {
                     }
                 });
 
+                // this.calcData.push(..._calcData);
+                this.columnSummaryCalcData = Object.freeze(
+                    this.columnSummaryCalcData.concat(_calcData)
+                );
+
+                console.log(
+                    "columnSummaryCalcData",
+                    this.columnSummaryCalcData
+                );
                 this.tableData = [...this.combineHeads, ...this.combineValues];
             });
         },
         // add row summary
         handleAddRowSummary() {
-            const handle = (data) => {};
+            // const handle = (data) => {};
+            const { key, label, handle } = this.localRowSummary.shift();
 
             this.$nextTick(() => {
                 this.combineValues.forEach((valueRow) => {
@@ -711,27 +737,28 @@ export default {
                         _cloneRow.forEach((cell, index) => {
                             if (Array.isArray(cell)) {
                                 cell.slice(1).forEach((_cell) => {
-                                    console.log(_cell.path);
+                                    // console.log(_cell.path);
                                     _cell.value = "[" + index + "]";
                                 });
                             } else {
                                 const _filterData = this._filterData(
                                     cell.path,
                                     this.calcData
-                                );
-                                // cell.value = "-";
-                                console.log(cell.path, cell.key);
+                                ).map((item) => item[cell.key]);
+                                cell.value = handle(_filterData);
+                                // console.log(cell.path, cell.key);
                             }
                         });
                         valueRow.push(_cloneRow);
                     }
                 });
 
-                console.log("this.combineValues", this.combineValues);
+                // console.log("this.combineValues", this.combineValues);
 
                 this.tableData = [...this.combineHeads, ...this.combineValues];
             });
         },
+        saveCalcData(condition, key, value) {},
         // recalc the position(x-y)
         // drag cell start
         handleDragStart(e, data) {

@@ -79,21 +79,46 @@ export default {
             {
                 label: "新增行",
                 handle(data) {
-                    console.log(data);
+                    if (!data.length) return "";
+                    return data
+                        .filter((num) => num !== "")
+                        .reduce((prev, curr) => prev + curr, 0);
                 },
             },
         ],
         columnSummarys: [
             {
-                name: "新增列",
+                label: "新增列",
                 handle(data) {
-                    console.log(data);
+                    let clicks = 0;
+                    let downloads = 0;
+
+                    data.forEach(({ click, download }) => {
+                        clicks += +click;
+                        downloads += +download;
+                    });
+
+                    const result = clicks / downloads;
+
+                    return Number.isNaN(result)
+                        ? ""
+                        : (result * 100).toFixed(2) + "%";
                 },
             },
             {
-                name: "新增列1",
+                label: "新增列1",
                 handle(data) {
-                    console.log(data);
+                    let clicks = 0;
+                    let downloads = 0;
+
+                    data.forEach(({ click, download }) => {
+                        clicks += +click;
+                        downloads += +download;
+                    });
+
+                    const result = clicks + downloads;
+
+                    return Number.isNaN(result) ? "" : result;
                 },
             },
         ],
