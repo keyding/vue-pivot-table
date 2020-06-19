@@ -1,59 +1,50 @@
 <template>
     <div style="margin: 20px;">
         <table>
-            <template v-for="(tr, trIndex) in tableData">
-                <tr
-                    v-for="(_tr, _trIndex) in Array.isArray(tr[0])
-                        ? tr.slice(1)
-                        : [tr]"
-                    :key="'' + trIndex + _trIndex"
-                    :index="'' + trIndex + _trIndex"
+            <tr v-for="(tr, index) in __combineHeads" :key="index">
+                <td
+                    v-if="!cell.__hide"
+                    v-for="cell in tr"
+                    :key="cell.__index"
+                    :rowspan="cell.rowspan"
+                    :colspan="cell.colspan"
                 >
-                    <template v-for="(td, tdIndex) in _tr">
-                        <td
-                            v-for="(_td, _tdIndex) in Array.isArray(td)
-                                ? td.slice(1)
-                                : [td]"
-                            :key="
-                                '' +
-                                    trIndex +
-                                    _trIndex +
-                                    tdIndex +
-                                    _tdIndex +
-                                    ''
-                            "
-                            :index="
-                                '' +
-                                    trIndex +
-                                    _trIndex +
-                                    tdIndex +
-                                    _tdIndex +
-                                    ''
-                            "
-                            :rowspan="_td.rowspan"
-                            :colspan="_td.colspan"
-                        >
-                            <div
-                                draggable
-                                :class="{
-                                    summary: _td.isSummary,
-                                    dragged: _td.dragged,
+                    <div
+                        :class="{
+                                    'col-summary-bg': cell.__colSummary,
+                                    dragged: cell.dragged,
                                 }"
-                                :style="{
+                        :style="{
                                     'min-height': _getMinHeightByRowCount(
-                                        _td.rowspan
+                                        cell.rowspan
                                     ),
                                 }"
-                                @dragstart="handleDragStart($event, _td)"
-                                @drag="handleDrag"
-                                @dragend="handleDragEnd($event, _td)"
-                            >
-                                {{ _td.value }}
-                            </div>
-                        </td>
-                    </template>
-                </tr>
-            </template>
+                    >{{ cell.value }}</div>
+                </td>
+            </tr>
+            <tr v-for="(tr, index) in __combineValues" :key="tr.__index" v-if="!tr.__hide">
+                <td
+                    v-if="!cell.__hide"
+                    v-for="cell in tr.data"
+                    :key="cell.__index"
+                    :rowspan="cell.rowspan"
+                    :colspan="cell.colspan"
+                >
+                    <!-- summary: cell.isSummary, -->
+                    <div
+                        :class="{
+                                    'col-summary-bg': cell.__colSummary,
+                                    'row-summary-bg': cell.__rowSummary,
+                                    dragged: cell.dragged,
+                                }"
+                        :style="{
+                                    'min-height': _getMinHeightByRowCount(
+                                        cell.rowspan
+                                    ),
+                                }"
+                    >{{ cell.value }}</div>
+                </td>
+            </tr>
         </table>
     </div>
 </template>
@@ -70,7 +61,7 @@ import {
     convertPathToMap,
     findCategory,
     getHeightByCount,
-    randomString,
+    randomString
 } from "./utils";
 import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
 
@@ -81,6 +72,10 @@ import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
  * - empty props checkout
  * - √ 新增列时，需要将新增列的计算后的结果和条件存入 calcData 中，并在 cell 中保存对应的 key
  * - 新增行时，直接通过key 和 条件来查找对应的计算列的汇总
+ *
+ * handle 的使用
+ * 计算名称的填写
+ * 区分列和行
  */
 
 export default {
@@ -88,31 +83,31 @@ export default {
     props: {
         rows: {
             type: Array,
-            default: () => [],
+            default: () => []
         },
         columns: {
             type: Array,
-            default: () => [],
+            default: () => []
         },
         values: {
             type: Array,
-            default: () => [],
+            default: () => []
         },
         // data
         data: {
             type: Array,
-            default: () => [],
+            default: () => []
         },
         // display column summary info. The default value is `false`
         columnSummary: {
             type: Array,
-            default: () => [],
+            default: () => []
         },
         // display row summary info. The default value is `false`
         rowSummary: {
             type: Array,
-            default: () => [],
-        },
+            default: () => []
+        }
     },
     data: () => ({
         localRows: [],
@@ -125,6 +120,10 @@ export default {
         columnSummaryCalcData: [],
         // Separator
         Separator: SEPARATOR,
+
+        // 需要删除
+        __combineHeads: [],
+        __combineValues: []
     }),
     computed: {
         rowPaths() {
@@ -148,101 +147,142 @@ export default {
 
             return _paths;
         },
-        rowHeads() {
-            return this.localRows.map(({ label }, index) => {
-                return mergeBaseInfo({
-                    value: label,
-                    y: index,
-                    _index: `0-${index}`,
-                    rowspan:
-                        this.localColumns.length +
-                            Number(Boolean(this.localValues.length)) || 1,
-                });
-            });
+        pathKeys() {
+            return this.localRows
+                .map(({ key }) => key)
+                .concat(this.localColumns.map(({ key }) => key));
         },
-        colHeads() {
-            const _rows = this.localColumns.map(() => []);
+        // monitor all props value changes
+        watchAllProps() {
+            const {
+                rows,
+                columns,
+                values,
+                data,
+                columnSummary,
+                rowSummary
+            } = this;
 
-            const valuesLen = this.localValues.length;
+            return {
+                rows,
+                columns,
+                values,
+                data,
+                columnSummary,
+                rowSummary
+            };
+        },
 
-            if (valuesLen) {
-                _rows.push([]);
-            }
+        // 计算所有对应条件的值
+        __dataValues() {
+            // 列对应的条件
+            const colConditions = convertPathToMap(
+                this.colPaths,
+                this.localColumns
+                    .map(({ key }) => key)
+                    .concat(this.localValues.length ? ["value"] : [])
+            );
 
-            this.colPaths.forEach((path, pathIndex) => {
-                const values = path.split(this.Separator);
+            // 行对应的条件
+            const rowConditions = convertPathToMap(
+                this.rowPaths,
+                this.localRows.map(({ key }) => key)
+            );
+
+            // 针对没传入行或列的处理
+            !colConditions.length && colConditions.push({});
+            !rowConditions.length && rowConditions.push({});
+
+            // 过滤数据, 遍历行以及遍历行对应的列
+            return rowConditions.map((rowCondition, rowConditionIndex) => {
+                const _data = colConditions.map(
+                    (colCondition, colConditionIndex) => {
+                        // 存储当前单元对应的数据
+                        const cellData = {};
+
+                        // 当前单元对应的条件
+                        const conditions = Object.assign(
+                            {},
+                            rowCondition,
+                            colCondition
+                        );
+
+                        // 如果没有 value key，说明是一个汇总维度。
+                        const isSummary = !conditions.value;
+
+                        const _filterConditions = Object.fromEntries(
+                            Object.entries(conditions).filter(
+                                item => item[0] !== "value"
+                            )
+                        );
+
+                        // 通过当前单元对应的条件，过滤数据
+                        const filterData = this._filterData(
+                            _filterConditions,
+                            this.localData
+                        );
+
+                        // 对应表格的坐标位置
+                        const baseX =
+                            this.localColumns.length +
+                            +Boolean(this.localValues.length) +
+                            rowConditionIndex;
+
+                        const baseY = this.localRows.length + colConditionIndex;
+
+                        Object.assign(
+                            cellData,
+                            mergeBaseInfo({
+                                conditions,
+                                x: baseX,
+                                y: baseY,
+                                isSummary,
+                                __hide: isSummary,
+                                __clone: isSummary
+                            })
+                        );
+
+                        // 针对为指定值 props.values 的空处理(绘制空表格)
+                        const isEmptyValues =
+                            this.localColumns.length &&
+                            this.localRows.length &&
+                            !this.localValues.length;
+
+                        if (isEmptyValues) {
+                            Object.assign(cellData, {
+                                value: ""
+                            });
+                        } else {
+                            // 从 props.values 中找出对应的值 handle
+                            // 注意：this.localValues 通过 JSON.xxx 序列化后，handle 会被忽略
+                            const _value = this.values.find(
+                                ({ key }) => key === conditions.value
+                            );
+
+                            Object.assign(cellData, {
+                                value:
+                                    _value && _value.handle
+                                        ? _value.handle(filterData)
+                                        : ""
+                            });
+                        }
+
+                        return cellData;
+                    }
+                );
+
                 const isSummary =
-                    values.length !== this.localColumns.length + 1;
-                const currPath = [];
+                    Object.keys(rowCondition).length !== this.localRows.length;
 
-                _rows.forEach((row, rowIndex) => {
-                    const currVal = values[rowIndex] || "";
-                    currPath.push(currVal);
-
-                    const isValueKey =
-                        valuesLen && currVal && rowIndex === _rows.length - 1;
-
-                    const baseX = rowIndex;
-
-                    const baseY =
-                        rowIndex === 0 && this.localRows.length
-                            ? this.localRows.length + pathIndex
-                            : pathIndex;
-
-                    const cell = mergeBaseInfo({
-                        path: currPath.filter((item) => !!item),
-                        value: isValueKey
-                            ? this.localValues.find(
-                                  ({ key }) => key === currVal
-                              ).label
-                            : currVal,
-                        x: baseX,
-                        y: baseY,
-                        _index: `${baseX}-${baseY}`,
-                        isSummary,
-                    });
-
-                    row.push(isSummary ? [cell] : cell);
-                });
+                return {
+                    __clone: isSummary,
+                    __hide: isSummary,
+                    __index: _data[0].x,
+                    data: _data
+                };
             });
-
-            return _rows;
         },
-        /*
-            valueHeads() {
-                const _valueHeads = [];
-
-                const _paths = this.colPaths;
-
-                const colCount = _paths.length || 1;
-
-                for (let i = 0; i < colCount; i++) {
-                    const _index = i % 2;
-                    const currPath = _paths[i];
-                    const path = currPath ? currPath.split(this.Separator) : [];
-                    const currPathsLen =
-                        _paths[i] !== undefined
-                            ? _paths[i].split(this.Separator).length
-                            : -1;
-                    const baseX = this.localColumns.length;
-                    const baseY = this.localRows.length + i;
-                    const isSummary = currPathsLen !== this.localColumns.length + 1;
-
-                    _valueHeads.push(
-                        mergeBaseInfo({
-                            path,
-                            value: this.localValues[_index].label,
-                            x: baseX,
-                            y: baseY,
-                            isSummary
-                        })
-                    );
-                }
-
-                return _valueHeads;
-            },
-        */
-        rowHeadValues() {
+        __rowHeadValues() {
             return this.rowPaths.map((path, index) => {
                 const values = path.split(this.Separator);
                 const currPath = [];
@@ -260,175 +300,166 @@ export default {
                     currPath.push(_currVal);
 
                     return mergeBaseInfo({
-                        path: currPath.filter((item) => !!item),
+                        path: currPath.filter(item => !!item),
                         value: _currVal,
                         x: baseX,
                         y: baseY,
-                        _index: `${baseX}-${baseY}`,
+                        __index: `${baseX}-${baseY}`,
                         isSummary,
+                        rowSummary: isSummary
                     });
                 });
             });
         },
-        dataValues() {
-            // conditions of col head
-            const colConditions = convertPathToMap(
-                this.colPaths,
-                this.localColumns
-                    .map(({ key }) => key)
-                    .concat(this.localValues.length ? ["value"] : [])
-            );
+        __colHeads() {
+            // 共有多少行
+            const _rows = this.localColumns.map(() => []);
 
-            // conditions of row-head
-            const rowConditions = convertPathToMap(
-                this.rowPaths,
-                this.localRows.map(({ key }) => key)
-            );
+            // 有几个值
+            const valuesLen = this.localValues.length;
 
-            // Note: if there are no props.rows or props.column, push an empty object
-            !colConditions.length && colConditions.push({});
-            !rowConditions.length && rowConditions.push({});
+            if (valuesLen) {
+                _rows.push([]);
+            }
 
-            // draw data
-            const _dataValues = rowConditions.map(
-                (rowCondition, rowConditionIndex) => {
-                    const _row = colConditions.map(
-                        (colCondition, colConditionIndex) => {
-                            // the condition of current cell
-                            const conditions = Object.assign(
-                                {},
-                                rowCondition,
-                                colCondition
-                            );
+            this.colPaths.forEach((path, pathIndex) => {
+                // 条件值
+                const pathValues = path.split(this.Separator);
 
-                            // console.log(Object.keys(conditions));
+                // 是否为汇总字段, +1 是因为还有 values
+                const isSummary =
+                    pathValues.length !==
+                    this.localColumns.length +
+                        +Boolean(this.localValues.length);
 
-                            // const isSummary =
-                            //     Object.keys(conditions).length !==
-                            //     this.pathKeys.length + 1;
-                            // console.log(isSummary);
-                            const isSummary = !conditions.value;
-                            // console.log(conditions.value, "-", isSummary);
+                // 存储路径
+                const currPath = [];
 
-                            const _key = conditions.value;
+                _rows.forEach((row, rowIndex) => {
+                    const cellData = {};
 
-                            delete conditions.value;
+                    const currVal = pathValues[rowIndex] || "";
 
-                            let cellData = [];
+                    const isValueKey =
+                        valuesLen && currVal && rowIndex === _rows.length - 1;
 
-                            // filter the data
-                            const filterData = this._filterData(
-                                conditions,
-                                this.localData
-                            );
+                    // 是否为 values 行
+                    const isLastRow = rowIndex === _rows.length - 1;
 
-                            const baseX =
-                                this.localColumns.length +
-                                +Boolean(this.localValues.length) +
-                                rowConditionIndex;
+                    // 存储路径
+                    currPath.push(currVal);
 
-                            const baseY =
-                                this.localRows.length + colConditionIndex;
+                    const baseX = rowIndex;
+                    const baseY =
+                        rowIndex === 0 && this.localRows.length
+                            ? this.localRows.length + pathIndex
+                            : pathIndex;
 
-                            // the filtered data is passed to the `handle` of `props.values`, return calculated data.
-                            // Note: there is no `handle` in the `this.localValues`.
-                            if (
-                                this.localColumns.length &&
-                                this.localRows.length &&
-                                !this.localValues.length
-                            ) {
-                                // render empty cell
-                                cellData.push(
-                                    mergeBaseInfo({
-                                        path: conditions,
-                                        x: baseX,
-                                        y: baseY,
-                                        value: "",
-                                        isSummary,
-                                        _index: `${baseX}-${baseY}`,
-                                    })
-                                );
-                            } else {
-                                if (isSummary) {
-                                    cellData = [
-                                        mergeBaseInfo({
-                                            path: conditions,
-                                            x: baseX,
-                                            y: baseY,
-                                            key: _key,
-                                            value: "",
-                                            isSummary,
-                                            _index: `${baseX}-${baseY}`,
-                                        }),
-                                    ];
-                                } else {
-                                    const _value = this.values.find(
-                                        ({ key }) => key === _key
-                                    );
-
-                                    cellData = mergeBaseInfo({
-                                        path: conditions,
-                                        x: baseX,
-                                        y: baseY,
-                                        key: _key,
-                                        value: _value.handle
-                                            ? _value.handle(filterData)
-                                            : "",
-                                        isSummary,
-                                        _index: `${baseX}-${baseY}`,
-                                    });
-                                }
-                            }
-
-                            return cellData;
-                        }
+                    Object.assign(
+                        cellData,
+                        mergeBaseInfo({
+                            x: baseX,
+                            y: baseY,
+                            isSummary,
+                            path: currPath.filter(item => !!item),
+                            __index: `${baseX}-${baseY}`,
+                            __hide: isSummary,
+                            __clone: isSummary,
+                            __colSummary: isSummary
+                        })
                     );
 
-                    return _row;
-                }
-            );
+                    // 最后一行是 values，替换显示文本
+                    row.push(
+                        Object.assign(cellData, {
+                            value:
+                                valuesLen && isLastRow && currVal
+                                    ? this.localValues.find(
+                                          ({ key }) => key === currVal
+                                      ).label
+                                    : currVal
+                        })
+                    );
+                });
+            });
 
-            console.log("_dataValues", _dataValues);
-
-            return _dataValues.filter((item) => item.length);
+            return _rows;
         },
-        pathKeys() {
-            return this.localRows
-                .map(({ key }) => key)
-                .concat(this.localColumns.map(({ key }) => key));
-        },
-        // monitor all props value changes
-        watchAllProps() {
-            const {
-                rows,
-                columns,
-                values,
-                data,
-                columnSummary,
-                rowSummary,
-            } = this;
-
-            return {
-                rows,
-                columns,
-                values,
-                data,
-                columnSummary,
-                rowSummary,
-            };
-        },
+        __rowHeads() {
+            return this.localRows.map(({ label }, index) => {
+                return mergeBaseInfo({
+                    value: label,
+                    y: index,
+                    __index: `0-${index}`,
+                    rowspan:
+                        this.localColumns.length +
+                            Number(Boolean(this.localValues.length)) || 1
+                });
+            });
+        }
     },
     created() {
         this.init();
+        this.newInit();
     },
     methods: {
+        newInit() {
+            this.handleCalcData();
+            console.log("this.__colHeads", this.__colHeads);
+            console.log("this.__rowHeads", this.__rowHeads);
+            this.__handleCombineHeads();
+            // console.log("this.__combineHeads", this.__combineHeads);
+            console.log("this.__dataValues", this.__dataValues);
+            // console.log("this.__rowHeadValues", this.__rowHeadValues);
+            this.__handleCombineValues();
+            // console.log("this.__combineValues", this.__combineValues);
+
+            // 增加计算列 - 每一个计算单元需要增加一个value，并将值存进去。
+            this.handleAddCalcColumn();
+            this.handleAddCalcRow();
+            this.handleAddCalcColumn();
+            // this.handleAddCalcRow();
+            console.log("this.__combineHeads", this.__combineHeads);
+            console.log("this.__combineValues", this.__combineValues);
+            // 增加计算航
+            // 关于空值的处理
+        },
+        // 合并表头
+        __handleCombineHeads() {
+            let combineColHeads = [...this.__colHeads];
+            combineColHeads[0] = combineColHeads[0] || [];
+            combineColHeads[0].unshift(...this.__rowHeads);
+            combineColHeads = combineColHeads.filter(item => item.length);
+
+            this.__combineHeads = combineColHeads;
+        },
+        // 合并值
+        __handleCombineValues() {
+            // values
+            const combineValues = [];
+
+            const valueRowCount =
+                this.__dataValues.length || this.__rowHeadValues.length;
+
+            for (let i = 0; i < valueRowCount; i++) {
+                const _currRowHeadValue = this.__rowHeadValues[i] || [];
+                const _currValue = this.__dataValues[i] || [];
+                const _row = [..._currRowHeadValue, ..._currValue.data];
+
+                combineValues.push(
+                    Object.assign({}, _currValue, { data: _row })
+                );
+            }
+
+            this.__combineValues = combineValues;
+        },
         init() {
             if (this.rows.length || this.columns.length || this.values) {
                 this.handleDataClone();
                 this.setValuesToColAndRow();
-                this.combineTable();
-                this.handleCalcData();
-                this.handleSummary();
+                // this.combineTable();
+                // this.handleCalcData();
+                // this.handleSummary();
             } else {
                 console.warn(
                     "[Warn]: props.rows, props.columns, props.values at least one is not empty."
@@ -444,7 +475,7 @@ export default {
             this.localValues = deepClone(this.values);
             this.localData = Object.freeze(this.data);
 
-            this.localRowSummary = this.rowSummary.map((item) =>
+            this.localRowSummary = this.rowSummary.map(item =>
                 Object.assign(
                     {},
                     { ...item },
@@ -452,7 +483,7 @@ export default {
                 )
             );
 
-            this.localColumnSummary = this.columnSummary.map((item) =>
+            this.localColumnSummary = this.columnSummary.map(item =>
                 Object.assign(
                     {},
                     { ...item },
@@ -467,102 +498,136 @@ export default {
             const columnValues = findCategory(columnKeys, this.localData);
             const rowValues = findCategory(rowKeys, this.localData);
 
-            this.localColumns.forEach((column) => {
+            this.localColumns.forEach(column => {
                 const { key, values } = column;
                 this.$set(column, "values", values || columnValues[key] || []);
             });
 
-            this.localRows.forEach((row) => {
+            this.localRows.forEach(row => {
                 const { key, values } = row;
                 this.$set(row, "values", values || rowValues[key] || []);
             });
         },
-        // combine table heads
-        handleCombineHeads() {
-            let combineColHeads = [...this.colHeads];
-            combineColHeads[0] = combineColHeads[0] || [];
-            combineColHeads[0].unshift(...this.rowHeads);
-            combineColHeads = combineColHeads.filter((item) => item.length);
+        // 增加一个计算列
+        handleAddCalcColumn() {
+            const key = randomString();
 
-            // console.log("6. combineColHeads", combineColHeads);
+            const keys = [];
 
-            this.combineHeads = combineColHeads;
-        },
-        // combine table values
-        handleCombineValues() {
-            // values
-            const combineValues = [];
-
-            const valueRowCount =
-                this.dataValues.length || this.rowHeadValues.length;
-
-            for (let i = 0; i < valueRowCount; i++) {
-                const _currRowHeadValue = this.rowHeadValues[i] || [];
-                const _currValue = this.dataValues[i] || [];
-                const _row = [..._currRowHeadValue, ..._currValue];
-
-                if (_row[0].isSummary) {
-                    _row.forEach((item) => {
-                        if (!Array.isArray(item)) {
-                            item.isSummary = true;
-                        }
-                    });
-                    combineValues.push([_row]);
-                } else {
-                    combineValues.push(_row);
+            // 生成每个计算列对应的 key
+            this.__combineValues[0].data.forEach(col => {
+                if (col.__clone) {
+                    keys.push(randomString());
                 }
-            }
+            });
 
-            // console.log("7. valueRowCount", valueRowCount);
+            this.__combineHeads = this.__combineHeads.map(row => {
+                const _row = [];
 
-            // console.log("8. combineValues", combineValues);
-
-            this.combineValues = combineValues;
-        },
-        // combination table
-        combineTable() {
-            this.handleCombineHeads();
-            this.handleCombineValues();
-            this.tableData = [...this.combineHeads, ...this.combineValues];
-
-            // console.log("colPaths", this.colPaths);
-            // combinePaths(
-            //     ...this.localColumns.map(({ values }) => values),
-            //     isSummary
-            // );
-            // const keys = this.localColumns.map(({ values }) => values);
-            // keys.push(this.localValues.map(({ key }) => key));
-            // console.log(keys);
-            // console.log(combinePaths(...keys, true));
-            // console.log("1. rowHeads", this.rowHeads);
-            // console.log("2. colHeads", this.colHeads);
-            // console.log("3. valueHeads", this.valueHeads);
-            // console.log("4. rowHeadValues", this.rowHeadValues);
-            // console.log("5. dataValues", this.dataValues);
-
-            // console.log("this.computedColHeads", this.computedColHeads);
-
-            // console.log("this.computedValueHeads", this.computedValueHeads);
-
-            // heads
-            // let combineColHeads = [...this.colHeads, this.valueHeads];
-
-            // console.log("9. tabledata", this.tableData);
-        },
-        handleSummary() {
-            if (this.localColumnSummary.length) {
-                this.localColumnSummary.forEach((item) => {
-                    this.handleAddColumnSummary();
+                row.forEach((col, index) => {
+                    // 插入计算列
+                    if (col.__clone) {
+                        const cloneCol = Object.fromEntries(
+                            Object.entries(col).filter(
+                                item =>
+                                    item[0] !== "__hide" &&
+                                    item[0] !== "__clone"
+                            )
+                        );
+                        _row.push(cloneCol);
+                    }
+                    _row.push(col);
                 });
-            }
 
-            if (this.localRowSummary.length) {
-                this.localRowSummary.forEach((item) => {
-                    this.handleAddRowSummary();
+                // 更新位置
+                const _x = _row[0].x;
+                let _y = _row[0].y;
+
+                _row.forEach(item =>
+                    Object.assign(item, { y: _y, __index: `${_x}-${_y++}` })
+                );
+
+                return _row;
+            });
+
+            const _calcData = [];
+
+            const _handle = data =>
+                data
+                    .map(item => {
+                        const { click = 0, download = 0 } = item;
+                        return +click + +download;
+                    })
+                    .reduce((prev, next) => prev + next);
+
+            this.__combineValues = this.__combineValues.map(row => {
+                const _row = [];
+                // 仅新增的计算列保存数据
+                const isSaveData = !row.__clone;
+
+                let keyIndex = 0;
+
+                row.data.forEach((col, index) => {
+                    // 插入计算列
+                    if (col.__clone) {
+                        const cloneCol = Object.fromEntries(
+                            Object.entries(col).filter(
+                                item =>
+                                    item[0] !== "__hide" &&
+                                    item[0] !== "__clone"
+                            )
+                        );
+                        // console.log(cloneCol.conditions);
+                        const _conditions = Object.fromEntries(
+                            Object.entries(cloneCol.conditions).filter(
+                                item => item[0] !== "value"
+                            )
+                        );
+                        const filterData = this._filterData(
+                            _conditions,
+                            this.calcData
+                        );
+
+                        // console.log(filterData, "filterData");
+
+                        const key = keys[keyIndex++];
+
+                        // console.log(filterData);
+                        cloneCol.value = _handle(filterData);
+
+                        cloneCol.conditions.value = key;
+
+                        cloneCol.__rowSummary = false;
+                        cloneCol.__colSummary = true;
+
+                        isSaveData &&
+                            _calcData.push(
+                                Object.assign({}, _conditions, {
+                                    [key]: cloneCol.value
+                                })
+                            );
+
+                        _row.push(cloneCol);
+                    }
+                    _row.push(col);
                 });
-            }
+
+                // 更新位置
+                const _x = _row[0].x;
+                let _y = _row[0].y;
+
+                _row.forEach(item =>
+                    Object.assign(item, { y: _y, __index: `${_x}-${_y++}` })
+                );
+
+                return Object.assign(row, { data: _row });
+            });
+
+            this.calcData = this.calcData.concat(_calcData);
+
+            // console.log(_calcData);
         },
-        // set calc data
+        // 初始计算值
         handleCalcData() {
             const _colPaths = combinePaths(
                 ...this.localColumns.map(({ values }) => values)
@@ -590,175 +655,112 @@ export default {
             this.calcData = Object.freeze(
                 rowConditions
                     .map((rowCondition, rowConditionIndex) =>
-                        colConditions.map((colCondition, colConditionIndex) => {
-                            // the condition of current cell
-                            const conditions = Object.assign(
-                                {},
-                                rowCondition,
-                                colCondition
-                            );
+                        colConditions
+                            .map((colCondition, colConditionIndex) => {
+                                // the condition of current cell
+                                const conditions = Object.assign(
+                                    {},
+                                    rowCondition,
+                                    colCondition
+                                );
 
-                            const cellData = {};
+                                const cellData = {};
 
-                            // filter the data
-                            const filterData = this._filterData(
-                                conditions,
-                                this.localData
-                            );
+                                // filter the data
+                                const filterData = this._filterData(
+                                    conditions,
+                                    this.localData
+                                );
 
-                            // empty cell
-                            const isEmptyCell =
-                                this.localColumns.length &&
-                                this.localRows.length &&
-                                !this.localValues.length;
+                                // empty cell
+                                const isEmptyCell =
+                                    this.localColumns.length &&
+                                    this.localRows.length &&
+                                    !this.localValues.length;
 
-                            const _values = {};
+                                const _values = {};
 
-                            this.values.forEach(({ key, handle }) => {
-                                _values[key] = isEmptyCell
-                                    ? ""
-                                    : handle
-                                    ? handle(filterData)
-                                    : "";
-                            });
+                                // 多个值，多条数据
+                                this.values.forEach(({ key, handle }) => {
+                                    _values[key] = isEmptyCell
+                                        ? ""
+                                        : handle
+                                        ? handle(filterData)
+                                        : "";
+                                });
 
-                            return Object.assign({}, conditions, _values);
-                        })
+                                return Object.assign({}, conditions, _values);
+                            })
+                            .flat()
                     )
-                    .filter((item) => item.length)
+                    .filter(item => item.length)
                     .flat()
             );
         },
-        // add column summary
-        handleAddColumnSummary() {
-            this.$nextTick(() => {
-                const { key, label, handle } = this.localColumnSummary.shift();
+        // 增加一个计算行
+        handleAddCalcRow() {
+            const __combineValues = [];
 
-                this.combineHeads.forEach((headRow, headRowIndex) => {
-                    headRow.forEach((cell) => {
-                        if (Array.isArray(cell)) {
-                            const isLastRow =
-                                headRowIndex === this.combineHeads.length - 1;
+            // console.log("this.calcData", this.calcData);
 
-                            cell.push(
-                                Object.assign({}, cell[0], {
-                                    y: "to-be-calc",
-                                    value: isLastRow ? label : cell[0].value,
-                                })
-                            );
-                        }
+            this.__combineValues.forEach(row => {
+                if (row.__clone) {
+                    const cloneRow = Object.assign({}, row, {
+                        __clone: false,
+                        __hide: false
                     });
-                });
+                    cloneRow.data = cloneRow.data.map(col => {
+                        let handle = data => {
+                            return data.length
+                                ? data
+                                      .map(item => item[col.conditions.value])
+                                      .reduce((prev, next) => prev + next)
+                                : "-";
+                        };
+                        let filterData = [];
 
-                // console.log("this.combineHeads", this.combineHeads);
-                // console.log("this.combineValues", this.combineValues);
-                console.log(this.calcData, "this.calcData");
-
-                // const _handle = (data) => {
-                //     let clicks = 0;
-                //     let downloads = 0;
-
-                //     data.forEach(({ click, download }) => {
-                //         clicks += +click;
-                //         downloads += +download;
-                //     });
-
-                //     const result = clicks / downloads;
-
-                //     return Number.isNaN(result)
-                //         ? ""
-                //         : (result * 100).toFixed(2) + "%";
-                // };
-
-                const _calcData = [];
-
-                const handleValueRow = (row = []) => {
-                    row.forEach((cell) => {
-                        if (Array.isArray(cell)) {
-                            const _filterData = this._filterData(
-                                cell[0].path,
+                        if (col.conditions) {
+                            filterData = this._filterData(
+                                Object.fromEntries(
+                                    Object.entries(col.conditions).filter(
+                                        item => item[0] !== "value"
+                                    )
+                                ),
                                 this.calcData
                             );
-                            const value = handle(_filterData);
-
-                            cell.push(
-                                Object.assign({}, cell[0], {
-                                    y: "to-be-calc",
-                                    value,
-                                    key,
-                                })
+                            filterData = filterData.filter(item =>
+                                Object.keys(item).includes(col.conditions.value)
                             );
-
-                            _calcData.push(
-                                Object.assign({}, cell[0].path, {
-                                    [key]: value,
-                                })
-                            );
+                            // console.log(col.conditions, filterData);
                         }
+
+                        return Object.assign({}, col, {
+                            value: handle(filterData),
+                            isSummary: true,
+                            __colSummary: false,
+                            __rowSummary: true
+                        });
                     });
-                };
+                    __combineValues.push(cloneRow);
+                }
 
-                this.combineValues.forEach((valueRow, valueRowIndex) => {
-                    if (Array.isArray(valueRow[0])) {
-                        valueRow.forEach((row) => {
-                            handleValueRow(row);
-                        });
-                    } else {
-                        handleValueRow(valueRow);
-                    }
-                });
+                __combineValues.push(row);
+            });
 
-                // this.calcData.push(..._calcData);
-                this.columnSummaryCalcData = Object.freeze(
-                    this.columnSummaryCalcData.concat(_calcData)
+            let _x = __combineValues[0].__index;
+
+            __combineValues.forEach(row => {
+                row.__index = _x;
+
+                row.data = row.data.map(col =>
+                    Object.assign({}, col, { x: _x, __index: `${_x}-${col.y}` })
                 );
 
-                console.log(
-                    "columnSummaryCalcData",
-                    this.columnSummaryCalcData
-                );
-                this.tableData = [...this.combineHeads, ...this.combineValues];
+                ++_x;
             });
+
+            this.__combineValues = __combineValues;
         },
-        // add row summary
-        handleAddRowSummary() {
-            // const handle = (data) => {};
-            const { key, label, handle } = this.localRowSummary.shift();
-
-            this.$nextTick(() => {
-                this.combineValues.forEach((valueRow) => {
-                    if (Array.isArray(valueRow[0])) {
-                        const _cloneRow = JSON.parse(
-                            JSON.stringify(valueRow[0])
-                        );
-
-                        // console.log(_cloneRow, "_cloneRow");
-
-                        _cloneRow.forEach((cell, index) => {
-                            if (Array.isArray(cell)) {
-                                cell.slice(1).forEach((_cell) => {
-                                    // console.log(_cell.path);
-                                    _cell.value = "[" + index + "]";
-                                });
-                            } else {
-                                const _filterData = this._filterData(
-                                    cell.path,
-                                    this.calcData
-                                ).map((item) => item[cell.key]);
-                                cell.value = handle(_filterData);
-                                // console.log(cell.path, cell.key);
-                            }
-                        });
-                        valueRow.push(_cloneRow);
-                    }
-                });
-
-                // console.log("this.combineValues", this.combineValues);
-
-                this.tableData = [...this.combineHeads, ...this.combineValues];
-            });
-        },
-        saveCalcData(condition, key, value) {},
         // recalc the position(x-y)
         // drag cell start
         handleDragStart(e, data) {
@@ -808,12 +810,12 @@ export default {
                 {
                     rows: [...this.localRows],
                     columns: [...this.localColumns],
-                    data: [...this.calcData],
+                    data: [...this.calcData]
                 }
             );
         },
         _filterData(conditions, data) {
-            return data.filter((data) => {
+            return data.filter(data => {
                 let status = true;
 
                 for (let key in conditions) {
@@ -829,14 +831,14 @@ export default {
         // get min height by rowspan
         _getMinHeightByRowCount(count) {
             return getHeightByCount(count);
-        },
+        }
     },
     watch: {
         watchAllProps() {
             this.init();
             this.$emit("on-change");
-        },
-    },
+        }
+    }
 };
 </script>
 
@@ -883,6 +885,15 @@ table {
             &.dragged {
                 outline: 1px dashed rgba(0, 0, 0, 0.5);
                 background: #bbb;
+            }
+
+            &.col-summary-bg {
+                // background: #eee;
+                background: red;
+            }
+
+            &.row-summary-bg {
+                background: #b6b6b6;
             }
         }
     }

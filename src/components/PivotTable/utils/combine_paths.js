@@ -15,7 +15,7 @@ export default (...args) => {
         args.pop();
     }
 
-    const paths = combine(...args);
+    const paths = combine(...args.filter(item => item.length));
 
     // add summary info
     if (_isHasSummary && paths.length) {

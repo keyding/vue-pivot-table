@@ -5,10 +5,10 @@ export default function mergeBaseInfo(info = {}) {
         x: 0,
         y: 0,
         selected: false,
-        drag: false,
         colspan: 1,
         rowspan: 1,
         isSummary: false,
+        drag: false,
         // drag cell state
         dragged: false,
         // draggable: false
