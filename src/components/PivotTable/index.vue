@@ -1,28 +1,31 @@
 <template>
     <div style="margin: 20px;">
         <table>
-            <tr v-for="(tr, index) in __combineHeads" :key="index">
-                <td
-                    v-if="!cell.__hide"
-                    v-for="cell in tr"
-                    :key="cell.__index"
-                    :rowspan="cell.rowspan"
-                    :colspan="cell.colspan"
-                >
-                    <div
-                        :class="{
-                                    'col-summary-bg': cell.__colSummary,
-                                    dragged: cell.dragged,
-                                }"
-                        :style="{
-                                    'min-height': _getMinHeightByRowCount(
-                                        cell.rowspan
-                                    ),
-                                }"
-                    >{{ cell.value }}</div>
-                </td>
-            </tr>
-            <tr v-for="(tr, index) in __combineValues" :key="tr.__index" v-if="!tr.__hide">
+            <template v-for="(tr, index) in combineHeads">
+                <tr>
+                    <td
+                        v-if="!cell.__hide"
+                        v-for="cell in tr"
+                        :key="cell.__index"
+                        :rowspan="cell.rowspan"
+                        :colspan="cell.colspan"
+                    >
+                        <div
+                            :class="{
+                                        'col-summary-bg': cell.__colSummary,
+                                        dragged: cell.dragged,
+                                    }"
+                            :style="{
+                                        'min-height': _getMinHeightByRowCount(
+                                            cell.rowspan
+                                        ),
+                                    }"
+                        >{{ cell.value }}</div>
+                    </td>
+                </tr>
+            </template>
+
+            <tr v-for="(tr, index) in combineValues" :key="tr.__index" v-if="!tr.__hide">
                 <td
                     v-if="!cell.__hide"
                     v-for="cell in tr.data"
@@ -98,6 +101,10 @@ export default {
             type: Array,
             default: () => []
         },
+        summary: {
+            type: Array,
+            default: () => []
+        },
         // display column summary info. The default value is `false`
         columnSummary: {
             type: Array,
@@ -114,16 +121,17 @@ export default {
         localColumns: [],
         localValues: [],
         tableData: [],
-        localRowSummary: [],
-        localColumnSummary: [],
+        // localRowSummary: [],
+        // localColumnSummary: [],
+        // 计算列的数据
         calcData: [],
-        columnSummaryCalcData: [],
         // Separator
         Separator: SEPARATOR,
 
-        // 需要删除
-        __combineHeads: [],
-        __combineValues: []
+        // 合并后的表头
+        combineHeads: [],
+        // 合并后的单元格
+        combineValues: []
     }),
     computed: {
         rowPaths() {
@@ -137,9 +145,12 @@ export default {
             return _paths;
         },
         colPaths() {
-            const keys = this.localColumns
-                .map(({ values }) => values)
-                .concat([this.localValues.map(({ key }) => key)]);
+            const keys = this.localColumns.map(({ values }) => values);
+            // .concat([this.localValues.map(({ key }) => key)]);
+
+            if (this.localValues.length) {
+                keys.push(this.localValues.map(({ key }) => key));
+            }
 
             const _paths = combinePaths(...keys, true);
 
@@ -154,164 +165,17 @@ export default {
         },
         // monitor all props value changes
         watchAllProps() {
-            const {
-                rows,
-                columns,
-                values,
-                data,
-                columnSummary,
-                rowSummary
-            } = this;
+            const { rows, columns, values, data } = this;
 
             return {
                 rows,
                 columns,
                 values,
-                data,
-                columnSummary,
-                rowSummary
+                data
             };
         },
-
-        // 计算所有对应条件的值
-        __dataValues() {
-            // 列对应的条件
-            const colConditions = convertPathToMap(
-                this.colPaths,
-                this.localColumns
-                    .map(({ key }) => key)
-                    .concat(this.localValues.length ? ["value"] : [])
-            );
-
-            // 行对应的条件
-            const rowConditions = convertPathToMap(
-                this.rowPaths,
-                this.localRows.map(({ key }) => key)
-            );
-
-            // 针对没传入行或列的处理
-            !colConditions.length && colConditions.push({});
-            !rowConditions.length && rowConditions.push({});
-
-            // 过滤数据, 遍历行以及遍历行对应的列
-            return rowConditions.map((rowCondition, rowConditionIndex) => {
-                const _data = colConditions.map(
-                    (colCondition, colConditionIndex) => {
-                        // 存储当前单元对应的数据
-                        const cellData = {};
-
-                        // 当前单元对应的条件
-                        const conditions = Object.assign(
-                            {},
-                            rowCondition,
-                            colCondition
-                        );
-
-                        // 如果没有 value key，说明是一个汇总维度。
-                        const isSummary = !conditions.value;
-
-                        const _filterConditions = Object.fromEntries(
-                            Object.entries(conditions).filter(
-                                item => item[0] !== "value"
-                            )
-                        );
-
-                        // 通过当前单元对应的条件，过滤数据
-                        const filterData = this._filterData(
-                            _filterConditions,
-                            this.localData
-                        );
-
-                        // 对应表格的坐标位置
-                        const baseX =
-                            this.localColumns.length +
-                            +Boolean(this.localValues.length) +
-                            rowConditionIndex;
-
-                        const baseY = this.localRows.length + colConditionIndex;
-
-                        Object.assign(
-                            cellData,
-                            mergeBaseInfo({
-                                conditions,
-                                x: baseX,
-                                y: baseY,
-                                isSummary,
-                                __hide: isSummary,
-                                __clone: isSummary
-                            })
-                        );
-
-                        // 针对为指定值 props.values 的空处理(绘制空表格)
-                        const isEmptyValues =
-                            this.localColumns.length &&
-                            this.localRows.length &&
-                            !this.localValues.length;
-
-                        if (isEmptyValues) {
-                            Object.assign(cellData, {
-                                value: ""
-                            });
-                        } else {
-                            // 从 props.values 中找出对应的值 handle
-                            // 注意：this.localValues 通过 JSON.xxx 序列化后，handle 会被忽略
-                            const _value = this.values.find(
-                                ({ key }) => key === conditions.value
-                            );
-
-                            Object.assign(cellData, {
-                                value:
-                                    _value && _value.handle
-                                        ? _value.handle(filterData)
-                                        : ""
-                            });
-                        }
-
-                        return cellData;
-                    }
-                );
-
-                const isSummary =
-                    Object.keys(rowCondition).length !== this.localRows.length;
-
-                return {
-                    __clone: isSummary,
-                    __hide: isSummary,
-                    __index: _data[0].x,
-                    data: _data
-                };
-            });
-        },
-        __rowHeadValues() {
-            return this.rowPaths.map((path, index) => {
-                const values = path.split(this.Separator);
-                const currPath = [];
-                const isSummary = this.localRows.length !== values.length;
-
-                return this.localRows.map((...args) => {
-                    const _index = args[1];
-                    const _currVal = values[_index] || "";
-                    const baseX =
-                        this.localColumns.length +
-                        +Boolean(this.localValues.length) +
-                        index;
-                    const baseY = _index;
-
-                    currPath.push(_currVal);
-
-                    return mergeBaseInfo({
-                        path: currPath.filter(item => !!item),
-                        value: _currVal,
-                        x: baseX,
-                        y: baseY,
-                        __index: `${baseX}-${baseY}`,
-                        isSummary,
-                        rowSummary: isSummary
-                    });
-                });
-            });
-        },
-        __colHeads() {
+        // 列的表头
+        colHeads() {
             // 共有多少行
             const _rows = this.localColumns.map(() => []);
 
@@ -322,15 +186,19 @@ export default {
                 _rows.push([]);
             }
 
+            // todo: 仅有 values 的时候会有一个空的path
+
             this.colPaths.forEach((path, pathIndex) => {
                 // 条件值
                 const pathValues = path.split(this.Separator);
 
                 // 是否为汇总字段, +1 是因为还有 values
+                // pathValues 有一个元素，且为空字符串的话，表示是全部的汇总
                 const isSummary =
+                    pathValues[0] === "" ||
                     pathValues.length !==
-                    this.localColumns.length +
-                        +Boolean(this.localValues.length);
+                        this.localColumns.length +
+                            +Boolean(this.localValues.length);
 
                 // 存储路径
                 const currPath = [];
@@ -385,7 +253,8 @@ export default {
 
             return _rows;
         },
-        __rowHeads() {
+        // 行的表头
+        rowHeads() {
             return this.localRows.map(({ label }, index) => {
                 return mergeBaseInfo({
                     value: label,
@@ -396,70 +265,233 @@ export default {
                             Number(Boolean(this.localValues.length)) || 1
                 });
             });
+        },
+        // 行对应的值
+        rowHeadValues() {
+            return this.localRows.length
+                ? this.rowPaths.map((path, index) => {
+                      const values = path.split(this.Separator);
+                      const currPath = [];
+                      // values 仅有一个元素，且为空字符串，表示是全部的汇总
+                      const isSummary =
+                          values[0] === "" ||
+                          this.localRows.length !== values.length;
+
+                      return this.localRows.map((...args) => {
+                          const _index = args[1];
+                          const _currVal = values[_index] || "";
+                          const baseX =
+                              this.localColumns.length +
+                              +Boolean(this.localValues.length) +
+                              index;
+                          const baseY = _index;
+
+                          currPath.push(_currVal);
+
+                          return mergeBaseInfo({
+                              path: currPath.filter(item => !!item),
+                              value: _currVal,
+                              x: baseX,
+                              y: baseY,
+                              isSummary,
+                              rowSummary: isSummary,
+                              __index: `${baseX}-${baseY}`,
+                              __hide: isSummary,
+                              __clone: false
+                          });
+                      });
+                  })
+                : [];
+        },
+        // 计算所有对应条件的值
+        dataValues() {
+            // 列对应的条件
+            const colConditions = convertPathToMap(
+                this.colPaths,
+                this.localColumns
+                    .map(({ key }) => key)
+                    .concat(this.localValues.length ? ["value"] : [])
+            );
+
+            // 行对应的条件
+            const rowConditions = convertPathToMap(
+                this.rowPaths,
+                this.localRows.map(({ key }) => key)
+            );
+
+            // console.log("colConditions", colConditions);
+            // console.log("rowConditions", rowConditions);
+
+            // 针对没传入行或列的处理
+            // !colConditions.length && colConditions.push({});
+            // !rowConditions.length && rowConditions.push({});
+
+            // 过滤数据, 遍历行以及遍历行对应的列
+            return rowConditions.map((rowCondition, rowConditionIndex) => {
+                const _data = colConditions.map(
+                    (colCondition, colConditionIndex) => {
+                        // 存储当前单元对应的数据
+                        const cellData = {};
+
+                        // 当前单元对应的条件
+                        const conditions = Object.assign(
+                            {},
+                            rowCondition,
+                            colCondition
+                        );
+
+                        const _filterConditions = Object.fromEntries(
+                            Object.entries(conditions).filter(
+                                item => item[0] !== "value"
+                            )
+                        );
+
+                        // 通过当前单元对应的条件，过滤数据
+                        const filterData = this._filterData(
+                            _filterConditions,
+                            this.localData
+                        );
+
+                        // 对应表格的坐标位置
+                        const baseX =
+                            this.localColumns.length +
+                            +Boolean(this.localValues.length) +
+                            rowConditionIndex;
+
+                        const baseY = this.localRows.length + colConditionIndex;
+
+                        Object.assign(
+                            cellData,
+                            mergeBaseInfo({
+                                conditions,
+                                x: baseX,
+                                y: baseY,
+                                __index: `${baseX}-${baseY}`
+                            })
+                        );
+
+                        // 针对为指定值 props.values 的空处理(绘制空表格)
+                        const isEmptyValues =
+                            this.localColumns.length &&
+                            this.localRows.length &&
+                            !this.localValues.length;
+
+                        if (isEmptyValues) {
+                            const isSummary =
+                                Object.keys(conditions).length !==
+                                this.localColumns.length +
+                                    +Boolean(this.localValues.length) +
+                                    this.localRows.length;
+
+                            Object.assign(cellData, {
+                                value: "",
+                                isSummary,
+                                __hide: isSummary,
+                                __clone: isSummary
+                            });
+                        } else {
+                            // 如果没有 value key，说明是一个汇总维度。
+                            const isSummary = !conditions.value;
+
+                            // 从 props.values 中找出对应的值 handle
+                            // 注意：this.localValues 通过 JSON.xxx 序列化后，handle 会被忽略
+                            const _value = this.values.find(
+                                ({ key }) => key === conditions.value
+                            );
+
+                            Object.assign(cellData, {
+                                isSummary,
+                                __hide: isSummary,
+                                __clone: isSummary,
+                                value:
+                                    _value && _value.handle
+                                        ? _value.handle(filterData)
+                                        : ""
+                            });
+                        }
+
+                        return cellData;
+                    }
+                );
+
+                // 行条件为空表示是全部汇总
+                const isSummary =
+                    Object.keys(rowCondition).length !== this.localRows.length;
+
+                return {
+                    isSummary,
+                    __clone: isSummary,
+                    __hide: isSummary,
+                    __index: _data[0].x,
+                    data: _data
+                };
+            });
         }
     },
     created() {
         this.init();
-        this.newInit();
+        this.log();
     },
     methods: {
-        newInit() {
-            this.handleCalcData();
-            console.log("this.__colHeads", this.__colHeads);
-            console.log("this.__rowHeads", this.__rowHeads);
-            this.__handleCombineHeads();
-            // console.log("this.__combineHeads", this.__combineHeads);
-            console.log("this.__dataValues", this.__dataValues);
-            // console.log("this.__rowHeadValues", this.__rowHeadValues);
-            this.__handleCombineValues();
-            // console.log("this.__combineValues", this.__combineValues);
-
+        log() {
+            // console.log("this.colHeads", this.colHeads);
+            // console.log("this.rowHeads", this.rowHeads);
+            // console.log("this.combineHeads", this.combineHeads);
+            // console.log("this.dataValues", this.dataValues);
+            // console.log("this.rowHeadValues", this.rowHeadValues);
+            // console.log("this.combineValues", this.combineValues);
             // 增加计算列 - 每一个计算单元需要增加一个value，并将值存进去。
-            this.handleAddCalcColumn();
-            this.handleAddCalcRow();
-            this.handleAddCalcColumn();
             // this.handleAddCalcRow();
-            console.log("this.__combineHeads", this.__combineHeads);
-            console.log("this.__combineValues", this.__combineValues);
+            // console.log("this.combineHeads", this.combineHeads);
+            // console.log("this.combineValues", this.combineValues);
             // 增加计算航
             // 关于空值的处理
         },
         // 合并表头
-        __handleCombineHeads() {
-            let combineColHeads = [...this.__colHeads];
+        handleCombineHeads() {
+            let combineColHeads = [...this.colHeads];
             combineColHeads[0] = combineColHeads[0] || [];
-            combineColHeads[0].unshift(...this.__rowHeads);
+            combineColHeads[0].unshift(...this.rowHeads);
             combineColHeads = combineColHeads.filter(item => item.length);
 
-            this.__combineHeads = combineColHeads;
+            this.combineHeads = combineColHeads;
         },
         // 合并值
-        __handleCombineValues() {
+        handleCombineValues() {
             // values
             const combineValues = [];
 
             const valueRowCount =
-                this.__dataValues.length || this.__rowHeadValues.length;
+                this.dataValues.length || this.rowHeadValues.length;
 
             for (let i = 0; i < valueRowCount; i++) {
-                const _currRowHeadValue = this.__rowHeadValues[i] || [];
-                const _currValue = this.__dataValues[i] || [];
-                const _row = [..._currRowHeadValue, ..._currValue.data];
+                const _currRowHeadValue = this.rowHeadValues[i] || [];
+                const _currValue = this.dataValues[i] || {};
+                const _row = [..._currRowHeadValue, ...(_currValue.data || [])];
 
                 combineValues.push(
                     Object.assign({}, _currValue, { data: _row })
                 );
             }
 
-            this.__combineValues = combineValues;
+            this.combineValues = combineValues;
         },
         init() {
             if (this.rows.length || this.columns.length || this.values) {
                 this.handleDataClone();
                 this.setValuesToColAndRow();
-                // this.combineTable();
-                // this.handleCalcData();
-                // this.handleSummary();
+                this.handleCalcData();
+                this.handleCombineHeads();
+                this.handleCombineValues();
+                this.handleAddCalcColumn();
+                this.handleAddCalcRow();
+                // this.handleAddCalcColumn();
+
+                if (this.summary.length) {
+                    this.handleAddCalcColumn();
+                    this.handleAddCalcRow();
+                    this.handleAddCalcColumn();
+                }
             } else {
                 console.warn(
                     "[Warn]: props.rows, props.columns, props.values at least one is not empty."
@@ -475,21 +507,21 @@ export default {
             this.localValues = deepClone(this.values);
             this.localData = Object.freeze(this.data);
 
-            this.localRowSummary = this.rowSummary.map(item =>
-                Object.assign(
-                    {},
-                    { ...item },
-                    { key: item.key || randomString() }
-                )
-            );
+            // this.localRowSummary = this.rowSummary.map(item =>
+            //     Object.assign(
+            //         {},
+            //         { ...item },
+            //         { key: item.key || randomString() }
+            //     )
+            // );
 
-            this.localColumnSummary = this.columnSummary.map(item =>
-                Object.assign(
-                    {},
-                    { ...item },
-                    { key: item.key || randomString() }
-                )
-            );
+            // this.localColumnSummary = this.columnSummary.map(item =>
+            //     Object.assign(
+            //         {},
+            //         { ...item },
+            //         { key: item.key || randomString() }
+            //     )
+            // );
         },
         // set the `values` attribute to rows and columns
         setValuesToColAndRow() {
@@ -510,18 +542,22 @@ export default {
         },
         // 增加一个计算列
         handleAddCalcColumn() {
+            if (!this.localColumns.length || !this.localValues.length) return;
+
             const key = randomString();
 
             const keys = [];
 
+            // console.log("this.combineValues", this.combineValues);
+
             // 生成每个计算列对应的 key
-            this.__combineValues[0].data.forEach(col => {
+            this.combineValues[0].data.forEach(col => {
                 if (col.__clone) {
                     keys.push(randomString());
                 }
             });
 
-            this.__combineHeads = this.__combineHeads.map(row => {
+            this.combineHeads = this.combineHeads.map(row => {
                 const _row = [];
 
                 row.forEach((col, index) => {
@@ -550,6 +586,8 @@ export default {
                 return _row;
             });
 
+            // console.log("this.combineHeads", this.combineHeads);
+
             const _calcData = [];
 
             const _handle = data =>
@@ -560,14 +598,17 @@ export default {
                     })
                     .reduce((prev, next) => prev + next);
 
-            this.__combineValues = this.__combineValues.map(row => {
+            this.combineValues = this.combineValues.map(row => {
                 const _row = [];
                 // 仅新增的计算列保存数据
                 const isSaveData = !row.__clone;
 
                 let keyIndex = 0;
 
+                // console.log("row", row);
+
                 row.data.forEach((col, index) => {
+                    // console.log("col", col, Object.entries(col));
                     // 插入计算列
                     if (col.__clone) {
                         const cloneCol = Object.fromEntries(
@@ -629,6 +670,8 @@ export default {
         },
         // 初始计算值
         handleCalcData() {
+            if (!this.localValues.length) return;
+
             const _colPaths = combinePaths(
                 ...this.localColumns.map(({ values }) => values)
             );
@@ -699,11 +742,13 @@ export default {
         },
         // 增加一个计算行
         handleAddCalcRow() {
-            const __combineValues = [];
+            const combineValues = [];
+
+            console.log("this.combineValues", this.combineValues);
 
             // console.log("this.calcData", this.calcData);
 
-            this.__combineValues.forEach(row => {
+            this.combineValues.forEach(row => {
                 if (row.__clone) {
                     const cloneRow = Object.assign({}, row, {
                         __clone: false,
@@ -737,19 +782,21 @@ export default {
                         return Object.assign({}, col, {
                             value: handle(filterData),
                             isSummary: true,
+                            __hide: false,
                             __colSummary: false,
                             __rowSummary: true
                         });
                     });
-                    __combineValues.push(cloneRow);
+                    console.log("cloneRow", cloneRow);
+                    combineValues.push(cloneRow);
                 }
 
-                __combineValues.push(row);
+                combineValues.push(row);
             });
 
-            let _x = __combineValues[0].__index;
+            let _x = combineValues[0].__index;
 
-            __combineValues.forEach(row => {
+            combineValues.forEach(row => {
                 row.__index = _x;
 
                 row.data = row.data.map(col =>
@@ -759,7 +806,7 @@ export default {
                 ++_x;
             });
 
-            this.__combineValues = __combineValues;
+            this.combineValues = combineValues;
         },
         // recalc the position(x-y)
         // drag cell start
@@ -889,11 +936,11 @@ table {
 
             &.col-summary-bg {
                 // background: #eee;
-                background: red;
+                background: #f0f0f0;
             }
 
             &.row-summary-bg {
-                background: #b6b6b6;
+                background: #e0e0e0;
             }
         }
     }
