@@ -1,8 +1,7 @@
 <template>
     <div id="app">
         <pivot-table
-            :row-summary="rowSummarys"
-            :column-summary="columnSummarys"
+            :summary="summary"
             :rows="rows"
             :columns="columns"
             :values="values"
@@ -21,38 +20,38 @@ const STATUS = {
     1: {
         rows: true,
         columns: false,
-        values: false
+        values: false,
     },
     2: {
         rows: false,
         columns: true,
-        values: false
+        values: false,
     },
     3: {
         rows: false,
         columns: false,
-        values: true
+        values: true,
     },
     4: {
         rows: true,
         columns: true,
-        values: false
+        values: false,
     },
     5: {
         rows: true,
         columns: false,
-        values: true
+        values: true,
     },
     6: {
         rows: false,
         columns: true,
-        values: true
+        values: true,
     },
     7: {
         rows: true,
         columns: true,
-        values: true
-    }
+        values: true,
+    },
 };
 
 const state = 7;
@@ -64,33 +63,33 @@ export default {
             ? [
                   {
                       key: "date",
-                      label: "Date"
-                      // values: ["2020-06-04", "2020-06-05"]
+                      label: "日期",
+                      //   values: ["2020-06-04", "2020-06-05"],
                   },
                   {
                       key: "time",
-                      label: "Time"
-                      // values: ["01:00", "02:00"]
-                  }
+                      label: "时间",
+                      //   values: ["01:00", "02:00"],
+                  },
               ]
             : [],
         columns: STATUS[state].columns
             ? [
                   {
                       key: "media",
-                      label: "Media"
-                      //   values: ["媒体1", "媒体2"]
+                      label: "Media",
+                      //   values: ["媒体1", "媒体2"],
                   },
                   {
                       key: "account",
-                      label: "Account"
-                      //   values: ["账号1", "账号2"]
+                      label: "Account",
+                      //   values: ["账号1", "账号2"],
                   },
                   {
                       key: "proxy",
-                      label: "Proxy"
-                      //   values: ["代理1", "代理2"]
-                  }
+                      label: "Proxy",
+                      //   values: ["代理1", "代理2"],
+                  },
               ]
             : [],
         values: STATUS[state].values
@@ -101,11 +100,11 @@ export default {
                       handle(data) {
                           if (!data.length) return "";
                           let total = 0;
-                          data.forEach(item => {
+                          data.forEach((item) => {
                               total += item.click;
                           });
                           return total;
-                      }
+                      },
                   },
                   {
                       key: "download",
@@ -113,12 +112,24 @@ export default {
                       handle(data) {
                           if (!data.length) return "";
                           let total = 0;
-                          data.forEach(item => {
+                          data.forEach((item) => {
                               total += item.download;
                           });
                           return total;
-                      }
-                  }
+                      },
+                  },
+                  {
+                      key: "abc",
+                      label: "ABC",
+                      handle(data) {
+                          if (!data.length) return "";
+                          let total = 0;
+                          data.forEach((item) => {
+                              total += item.download;
+                          });
+                          return total;
+                      },
+                  },
                   // {
                   //     key: "div",
                   //     label: "DIVs",
@@ -133,57 +144,56 @@ export default {
                   // }
               ]
             : [],
-        rowSummarys: [
+        summary: [
             {
-                label: "新增行",
+                label: "求和",
+                type: "column",
+                handle(data) {
+                    return data
+                        .map((item) => {
+                            const { click = 0, download = 0 } = item;
+                            return +click + +download;
+                        })
+                        .reduce((prev, next) => prev + next);
+                },
+            },
+            {
+                label: "行求和",
+                type: "row",
                 handle(data) {
                     if (!data.length) return "";
                     return data
-                        .filter(num => num !== "")
+                        .filter((num) => num !== "")
                         .reduce((prev, curr) => prev + curr, 0);
-                }
-            }
-        ],
-        columnSummarys: [
+                },
+            },
             {
-                label: "新增列",
+                label: "相除",
+                type: "column",
                 handle(data) {
                     let clicks = 0;
                     let downloads = 0;
 
-                    data.forEach(({ click, download }) => {
+                    data.forEach(({ click = 0, download = 0 }) => {
                         clicks += +click;
                         downloads += +download;
                     });
+
+                    console.log(clicks, downloads);
 
                     const result = clicks / downloads;
 
                     return Number.isNaN(result)
                         ? ""
                         : (result * 100).toFixed(2) + "%";
-                }
+                },
             },
-            {
-                label: "新增列1",
-                handle(data) {
-                    let clicks = 0;
-                    let downloads = 0;
-
-                    data.forEach(({ click, download }) => {
-                        clicks += +click;
-                        downloads += +download;
-                    });
-
-                    const result = clicks + downloads;
-
-                    return Number.isNaN(result) ? "" : result;
-                }
-            }
         ],
-        tableData: DEMODATA
+        columnSummarys: [],
+        tableData: DEMODATA,
     }),
     components: {
-        PivotTable
+        PivotTable,
     },
     // mounted() {
     //     setTimeout(() => {
@@ -204,8 +214,8 @@ export default {
         },
         handleDragEnd(data, allData) {
             console.log("drag end", data, allData);
-        }
-    }
+        },
+    },
 };
 </script>
 

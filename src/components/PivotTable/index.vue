@@ -12,20 +12,26 @@
                     >
                         <div
                             :class="{
-                                        'col-summary-bg': cell.__colSummary,
-                                        dragged: cell.dragged,
-                                    }"
+                                'col-summary-bg': cell.__colSummary,
+                                dragged: cell.dragged,
+                            }"
                             :style="{
-                                        'min-height': _getMinHeightByRowCount(
-                                            cell.rowspan
-                                        ),
-                                    }"
-                        >{{ cell.value }}</div>
+                                'min-height': _getMinHeightByRowCount(
+                                    cell.rowspan
+                                ),
+                            }"
+                        >
+                            {{ cell.value }}
+                        </div>
                     </td>
                 </tr>
             </template>
 
-            <tr v-for="(tr, index) in combineValues" :key="tr.__index" v-if="!tr.__hide">
+            <tr
+                v-for="(tr, index) in combineValues"
+                :key="tr.__index"
+                v-if="!tr.__hide"
+            >
                 <td
                     v-if="!cell.__hide"
                     v-for="cell in tr.data"
@@ -36,16 +42,16 @@
                     <!-- summary: cell.isSummary, -->
                     <div
                         :class="{
-                                    'col-summary-bg': cell.__colSummary,
-                                    'row-summary-bg': cell.__rowSummary,
-                                    dragged: cell.dragged,
-                                }"
+                            'col-summary-bg': cell.__colSummary,
+                            'row-summary-bg': cell.__rowSummary,
+                            dragged: cell.dragged,
+                        }"
                         :style="{
-                                    'min-height': _getMinHeightByRowCount(
-                                        cell.rowspan
-                                    ),
-                                }"
-                    >{{ cell.value }}</div>
+                            'min-height': _getMinHeightByRowCount(cell.rowspan),
+                        }"
+                    >
+                        {{ cell.value }}
+                    </div>
                 </td>
             </tr>
         </table>
@@ -64,7 +70,7 @@ import {
     convertPathToMap,
     findCategory,
     getHeightByCount,
-    randomString
+    randomString,
 } from "./utils";
 import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
 
@@ -78,51 +84,41 @@ import { CELL_MIN_HEIGHT, SEPARATOR } from "./utils/constants";
  *
  * handle 的使用
  * 计算名称的填写
- * 区分列和行
  */
-
+const TYPE_FN_NAMES = {
+    row: "handleAddCalcRow",
+    column: "handleAddCalcColumn",
+};
 export default {
     name: "PivotTable",
     props: {
         rows: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         columns: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         values: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         // data
         data: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
         summary: {
             type: Array,
-            default: () => []
+            default: () => [],
         },
-        // display column summary info. The default value is `false`
-        columnSummary: {
-            type: Array,
-            default: () => []
-        },
-        // display row summary info. The default value is `false`
-        rowSummary: {
-            type: Array,
-            default: () => []
-        }
     },
     data: () => ({
         localRows: [],
         localColumns: [],
         localValues: [],
         tableData: [],
-        // localRowSummary: [],
-        // localColumnSummary: [],
         // 计算列的数据
         calcData: [],
         // Separator
@@ -131,7 +127,7 @@ export default {
         // 合并后的表头
         combineHeads: [],
         // 合并后的单元格
-        combineValues: []
+        combineValues: [],
     }),
     computed: {
         rowPaths() {
@@ -158,11 +154,6 @@ export default {
 
             return _paths;
         },
-        pathKeys() {
-            return this.localRows
-                .map(({ key }) => key)
-                .concat(this.localColumns.map(({ key }) => key));
-        },
         // monitor all props value changes
         watchAllProps() {
             const { rows, columns, values, data } = this;
@@ -171,7 +162,7 @@ export default {
                 rows,
                 columns,
                 values,
-                data
+                data,
             };
         },
         // 列的表头
@@ -229,11 +220,11 @@ export default {
                             x: baseX,
                             y: baseY,
                             isSummary,
-                            path: currPath.filter(item => !!item),
+                            path: currPath.filter((item) => !!item),
                             __index: `${baseX}-${baseY}`,
                             __hide: isSummary,
                             __clone: isSummary,
-                            __colSummary: isSummary
+                            __colSummary: isSummary,
                         })
                     );
 
@@ -245,7 +236,7 @@ export default {
                                     ? this.localValues.find(
                                           ({ key }) => key === currVal
                                       ).label
-                                    : currVal
+                                    : currVal,
                         })
                     );
                 });
@@ -262,7 +253,7 @@ export default {
                     __index: `0-${index}`,
                     rowspan:
                         this.localColumns.length +
-                            Number(Boolean(this.localValues.length)) || 1
+                            Number(Boolean(this.localValues.length)) || 1,
                 });
             });
         },
@@ -289,15 +280,15 @@ export default {
                           currPath.push(_currVal);
 
                           return mergeBaseInfo({
-                              path: currPath.filter(item => !!item),
+                              path: currPath.filter((item) => !!item),
                               value: _currVal,
                               x: baseX,
                               y: baseY,
                               isSummary,
-                              rowSummary: isSummary,
+                              //   rowSummary: isSummary,
                               __index: `${baseX}-${baseY}`,
-                              __hide: isSummary,
-                              __clone: false
+                              __hide: false,
+                              __clone: false,
                           });
                       });
                   })
@@ -342,7 +333,7 @@ export default {
 
                         const _filterConditions = Object.fromEntries(
                             Object.entries(conditions).filter(
-                                item => item[0] !== "value"
+                                (item) => item[0] !== "value"
                             )
                         );
 
@@ -366,7 +357,7 @@ export default {
                                 conditions,
                                 x: baseX,
                                 y: baseY,
-                                __index: `${baseX}-${baseY}`
+                                __index: `${baseX}-${baseY}`,
                             })
                         );
 
@@ -387,7 +378,7 @@ export default {
                                 value: "",
                                 isSummary,
                                 __hide: isSummary,
-                                __clone: isSummary
+                                __clone: isSummary,
                             });
                         } else {
                             // 如果没有 value key，说明是一个汇总维度。
@@ -406,7 +397,7 @@ export default {
                                 value:
                                     _value && _value.handle
                                         ? _value.handle(filterData)
-                                        : ""
+                                        : "",
                             });
                         }
 
@@ -423,10 +414,10 @@ export default {
                     __clone: isSummary,
                     __hide: isSummary,
                     __index: _data[0].x,
-                    data: _data
+                    data: _data,
                 };
             });
-        }
+        },
     },
     created() {
         this.init();
@@ -447,35 +438,6 @@ export default {
             // 增加计算航
             // 关于空值的处理
         },
-        // 合并表头
-        handleCombineHeads() {
-            let combineColHeads = [...this.colHeads];
-            combineColHeads[0] = combineColHeads[0] || [];
-            combineColHeads[0].unshift(...this.rowHeads);
-            combineColHeads = combineColHeads.filter(item => item.length);
-
-            this.combineHeads = combineColHeads;
-        },
-        // 合并值
-        handleCombineValues() {
-            // values
-            const combineValues = [];
-
-            const valueRowCount =
-                this.dataValues.length || this.rowHeadValues.length;
-
-            for (let i = 0; i < valueRowCount; i++) {
-                const _currRowHeadValue = this.rowHeadValues[i] || [];
-                const _currValue = this.dataValues[i] || {};
-                const _row = [..._currRowHeadValue, ...(_currValue.data || [])];
-
-                combineValues.push(
-                    Object.assign({}, _currValue, { data: _row })
-                );
-            }
-
-            this.combineValues = combineValues;
-        },
         init() {
             if (this.rows.length || this.columns.length || this.values) {
                 this.handleDataClone();
@@ -483,14 +445,12 @@ export default {
                 this.handleCalcData();
                 this.handleCombineHeads();
                 this.handleCombineValues();
-                this.handleAddCalcColumn();
-                this.handleAddCalcRow();
-                // this.handleAddCalcColumn();
 
                 if (this.summary.length) {
-                    this.handleAddCalcColumn();
-                    this.handleAddCalcRow();
-                    this.handleAddCalcColumn();
+                    // this.handleAddCalcColumn();
+                    // this.handleAddCalcRow();
+                    // this.handleAddCalcColumn();
+                    this.handleAddSummarys();
                 }
             } else {
                 console.warn(
@@ -530,18 +490,66 @@ export default {
             const columnValues = findCategory(columnKeys, this.localData);
             const rowValues = findCategory(rowKeys, this.localData);
 
-            this.localColumns.forEach(column => {
+            this.localColumns.forEach((column) => {
                 const { key, values } = column;
                 this.$set(column, "values", values || columnValues[key] || []);
             });
 
-            this.localRows.forEach(row => {
+            this.localRows.forEach((row) => {
                 const { key, values } = row;
                 this.$set(row, "values", values || rowValues[key] || []);
             });
         },
+        // 合并表头
+        handleCombineHeads() {
+            let combineColHeads = [...this.colHeads];
+            combineColHeads[0] = combineColHeads[0] || [];
+            combineColHeads[0].unshift(...this.rowHeads);
+            combineColHeads = combineColHeads.filter((item) => item.length);
+
+            this.combineHeads = combineColHeads;
+        },
+        // 合并值
+        handleCombineValues() {
+            // values
+            const combineValues = [];
+
+            const valueRowCount =
+                this.dataValues.length || this.rowHeadValues.length;
+
+            for (let i = 0; i < valueRowCount; i++) {
+                const _currRowHeadValue = this.rowHeadValues[i] || [];
+                const _currValue = this.dataValues[i] || {};
+                const _row = [..._currRowHeadValue, ...(_currValue.data || [])];
+
+                combineValues.push(
+                    Object.assign({}, _currValue, { data: _row })
+                );
+            }
+
+            this.combineValues = combineValues;
+        },
+        // 添加计算汇总
+        handleAddSummarys() {
+            if (this.summary.length && this.localValues.length) {
+                this.summary.forEach((summary) => {
+                    const { type, handle } = summary;
+                    this.$nextTick(() => {
+                        this[TYPE_FN_NAMES[type]](handle);
+                    });
+                });
+            }
+        },
         // 增加一个计算列
-        handleAddCalcColumn() {
+        handleAddCalcColumn(handle) {
+            // const _handle = (data) =>
+            //     data
+            //         .map((item) => {
+            //             const { click = 0, download = 0 } = item;
+            //             return +click + +download;
+            //         })
+            //         .reduce((prev, next) => prev + next);
+
             if (!this.localColumns.length || !this.localValues.length) return;
 
             const key = randomString();
@@ -551,13 +559,13 @@ export default {
             // console.log("this.combineValues", this.combineValues);
 
             // 生成每个计算列对应的 key
-            this.combineValues[0].data.forEach(col => {
+            this.combineValues[0].data.forEach((col) => {
                 if (col.__clone) {
                     keys.push(randomString());
                 }
             });
 
-            this.combineHeads = this.combineHeads.map(row => {
+            this.combineHeads = this.combineHeads.map((row) => {
                 const _row = [];
 
                 row.forEach((col, index) => {
@@ -565,7 +573,7 @@ export default {
                     if (col.__clone) {
                         const cloneCol = Object.fromEntries(
                             Object.entries(col).filter(
-                                item =>
+                                (item) =>
                                     item[0] !== "__hide" &&
                                     item[0] !== "__clone"
                             )
@@ -579,7 +587,7 @@ export default {
                 const _x = _row[0].x;
                 let _y = _row[0].y;
 
-                _row.forEach(item =>
+                _row.forEach((item) =>
                     Object.assign(item, { y: _y, __index: `${_x}-${_y++}` })
                 );
 
@@ -590,15 +598,7 @@ export default {
 
             const _calcData = [];
 
-            const _handle = data =>
-                data
-                    .map(item => {
-                        const { click = 0, download = 0 } = item;
-                        return +click + +download;
-                    })
-                    .reduce((prev, next) => prev + next);
-
-            this.combineValues = this.combineValues.map(row => {
+            this.combineValues = this.combineValues.map((row) => {
                 const _row = [];
                 // 仅新增的计算列保存数据
                 const isSaveData = !row.__clone;
@@ -613,7 +613,7 @@ export default {
                     if (col.__clone) {
                         const cloneCol = Object.fromEntries(
                             Object.entries(col).filter(
-                                item =>
+                                (item) =>
                                     item[0] !== "__hide" &&
                                     item[0] !== "__clone"
                             )
@@ -621,7 +621,7 @@ export default {
                         // console.log(cloneCol.conditions);
                         const _conditions = Object.fromEntries(
                             Object.entries(cloneCol.conditions).filter(
-                                item => item[0] !== "value"
+                                (item) => item[0] !== "value"
                             )
                         );
                         const filterData = this._filterData(
@@ -634,7 +634,7 @@ export default {
                         const key = keys[keyIndex++];
 
                         // console.log(filterData);
-                        cloneCol.value = _handle(filterData);
+                        cloneCol.value = handle(filterData);
 
                         cloneCol.conditions.value = key;
 
@@ -644,7 +644,7 @@ export default {
                         isSaveData &&
                             _calcData.push(
                                 Object.assign({}, _conditions, {
-                                    [key]: cloneCol.value
+                                    [key]: cloneCol.value,
                                 })
                             );
 
@@ -657,7 +657,7 @@ export default {
                 const _x = _row[0].x;
                 let _y = _row[0].y;
 
-                _row.forEach(item =>
+                _row.forEach((item) =>
                     Object.assign(item, { y: _y, __index: `${_x}-${_y++}` })
                 );
 
@@ -736,70 +736,70 @@ export default {
                             })
                             .flat()
                     )
-                    .filter(item => item.length)
+                    .filter((item) => item.length)
                     .flat()
             );
         },
         // 增加一个计算行
-        handleAddCalcRow() {
+        handleAddCalcRow(handle) {
             const combineValues = [];
 
             console.log("this.combineValues", this.combineValues);
 
             // console.log("this.calcData", this.calcData);
 
-            this.combineValues.forEach(row => {
+            this.combineValues.forEach((row) => {
                 if (row.__clone) {
                     const cloneRow = Object.assign({}, row, {
                         __clone: false,
-                        __hide: false
+                        __hide: false,
                     });
-                    cloneRow.data = cloneRow.data.map(col => {
-                        let handle = data => {
-                            return data.length
-                                ? data
-                                      .map(item => item[col.conditions.value])
-                                      .reduce((prev, next) => prev + next)
-                                : "-";
-                        };
+                    cloneRow.data = cloneRow.data.map((col) => {
                         let filterData = [];
 
+                        // 对于有条件的数值做数据筛选
                         if (col.conditions) {
                             filterData = this._filterData(
                                 Object.fromEntries(
                                     Object.entries(col.conditions).filter(
-                                        item => item[0] !== "value"
+                                        (item) => item[0] !== "value"
                                     )
                                 ),
                                 this.calcData
                             );
-                            filterData = filterData.filter(item =>
-                                Object.keys(item).includes(col.conditions.value)
-                            );
+                            filterData = filterData
+                                .filter((item) =>
+                                    Object.keys(item).includes(
+                                        col.conditions.value
+                                    )
+                                )
+                                .map((item) => item[col.conditions.value]);
                             // console.log(col.conditions, filterData);
                         }
 
                         return Object.assign({}, col, {
-                            value: handle(filterData),
+                            value: col.conditions
+                                ? handle(filterData)
+                                : col.value,
                             isSummary: true,
-                            __hide: false,
                             __colSummary: false,
-                            __rowSummary: true
+                            __rowSummary: true,
                         });
                     });
-                    console.log("cloneRow", cloneRow);
+                    // console.log("cloneRow", cloneRow);
                     combineValues.push(cloneRow);
                 }
 
                 combineValues.push(row);
             });
 
+            // 修正位置序号
             let _x = combineValues[0].__index;
 
-            combineValues.forEach(row => {
+            combineValues.forEach((row) => {
                 row.__index = _x;
 
-                row.data = row.data.map(col =>
+                row.data = row.data.map((col) =>
                     Object.assign({}, col, { x: _x, __index: `${_x}-${col.y}` })
                 );
 
@@ -857,12 +857,12 @@ export default {
                 {
                     rows: [...this.localRows],
                     columns: [...this.localColumns],
-                    data: [...this.calcData]
+                    data: [...this.calcData],
                 }
             );
         },
         _filterData(conditions, data) {
-            return data.filter(data => {
+            return data.filter((data) => {
                 let status = true;
 
                 for (let key in conditions) {
@@ -878,14 +878,14 @@ export default {
         // get min height by rowspan
         _getMinHeightByRowCount(count) {
             return getHeightByCount(count);
-        }
+        },
     },
     watch: {
         watchAllProps() {
             this.init();
             this.$emit("on-change");
-        }
-    }
+        },
+    },
 };
 </script>
 
@@ -936,11 +936,13 @@ table {
 
             &.col-summary-bg {
                 // background: #eee;
-                background: #f0f0f0;
+                // background: #f0f0f0;
+                background: blue;
             }
 
             &.row-summary-bg {
-                background: #e0e0e0;
+                // background: #e0e0e0;
+                background: red;
             }
         }
     }
